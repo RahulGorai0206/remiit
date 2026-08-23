@@ -5,6 +5,7 @@ import com.rahulgorai.remiit.ai.RuleIntentParser
 import com.rahulgorai.remiit.data.db.RemiitDatabase
 import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.data.repo.RuleRepository
+import com.rahulgorai.remiit.delivery.ReminderDelivery
 import com.rahulgorai.remiit.delivery.ReminderDispatcher
 import com.rahulgorai.remiit.engine.RuleEngine
 import com.rahulgorai.remiit.engine.TriggerCoordinator
@@ -53,6 +54,11 @@ val appModule = module {
     single { SettingsStore(androidContext()) }
 
     single { ReminderDispatcher(androidContext()) }
+    // ReminderDispatcher is the only ReminderDelivery. Bound separately so the
+    // engine depends on the narrow interface — which is what makes its decision
+    // logic testable without an Android Context. Same pattern as TriggerSink
+    // below; omitting this binding is what made the app fail to launch.
+    single<ReminderDelivery> { get<ReminderDispatcher>() }
 
     single { RuleEngine(repository = get(), dispatcher = get(), clock = get()) }
     // The engine is the only TriggerSink. Bound separately so trigger sources
