@@ -70,23 +70,27 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    val localProperties = Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+
+    // CI supplies KEYSTORE_PATH from the base64-decoded secret; locally it comes
+    // from local.properties. Resolved once here so the release buildType can
+    // decide whether a signing config exists at all.
+    val releaseKeystore: File? = (
+        System.getenv("KEYSTORE_PATH")
+            ?: localProperties.getProperty("RELEASE_STORE_FILE")
+        )?.let(::file)?.takeIf { it.exists() }
+
     signingConfigs {
-        val localProperties = Properties().apply {
-            val file = rootProject.file("local.properties")
-            if (file.exists()) file.inputStream().use { load(it) }
-        }
-
-        create("release") {
-            // CI supplies KEYSTORE_PATH from the base64-decoded secret; locally
-            // it comes from local.properties. If neither is present the config
-            // is left unconfigured and assembleRelease produces unsigned APKs
-            // rather than failing the build.
-            val keystorePath = System.getenv("KEYSTORE_PATH")
-                ?: localProperties.getProperty("RELEASE_STORE_FILE")
-            val keystoreFile = keystorePath?.let { file(it) }
-
-            if (keystoreFile != null && keystoreFile.exists()) {
-                storeFile = keystoreFile
+        // Registered only when a keystore is actually present. Registering it
+        // unconditionally makes `assembleRelease` fail on any machine without
+        // signing material, which would mean R8 and the ABI splits could not be
+        // verified locally at all.
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                     ?: localProperties.getProperty("RELEASE_STORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -110,7 +114,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Unsigned when no keystore is available. The APK still exercises
+            // R8 and the ABI splits; it just cannot be installed until signed.
+            signingConfig = signingConfigs.findByName("release")
         }
         debug {
             applicationIdSuffix = ".debug"

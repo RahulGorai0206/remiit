@@ -2,14 +2,175 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Reminders are notifications; without this nothing is ever shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      Exact alarms. USE_EXACT_ALARM is granted at install for an app whose core
+      purpose is alarms and needs no user prompt; SCHEDULE_EXACT_ALARM is the
+      requestable fallback for builds where the former is disallowed.
+    -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!--
+      Required from Android 14 for the banner and alarm delivery modes. Holding
+      the permission is not enough on 14+ — the user must also allow it per-app,
+      which the permissions screen deep-links to.
+    -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Re-arm alarms and geofences, which do not survive a reboot or update. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Geofences need background location. Fine location is also what lets the app
+      read a Wi-Fi SSID at all: without it the platform returns a redacted value
+      and Wi-Fi rules silently never match.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Alarm-mode vibration. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Wi-Fi callbacks and usage-stats polling need a live process. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!--
+      The Play-policy-safe app-launch detector. A special-access permission: it
+      is granted through Settings > Usage access, never through a runtime prompt.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Manufacturer battery managers are the main cause of triggers dying. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!--
+      Needed to list installed apps for the app-launch rule's app picker and to
+      resolve a package name to a label in the history log.
+    -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
     <application
+        android:name=".RemiitApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Remiit" />
+        android:theme="@style/Theme.Remiit">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Remiit.Starting"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The full-screen reminder.
+          - singleTask + excludeFromRecents: a reminder is a moment, not a place
+            in the back stack, and it must never be resumable from Recents after
+            being answered.
+          - showOnLockScreen + turnScreenOn: an alarm behind the keyguard on a
+            dark screen is useless.
+          - showForAllUsers so it appears on a secured lock screen.
+        -->
+        <activity
+            android:name=".ui.reminder.ReminderOverlayActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:taskAffinity=".reminder"
+            android:theme="@style/Theme.Remiit.Overlay"
+            android:turnScreenOn="true" />
+
+        <!-- Fired time alarms; also re-arms the recurrence. -->
+        <receiver
+            android:name=".trigger.time.TimeTriggerReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Complete / Not done / Snooze / Dismiss, from notification or overlay. -->
+        <receiver
+            android:name=".delivery.ReminderActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".trigger.location.GeofenceReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!--
+          exported="true" is required for the system to deliver BOOT_COMPLETED;
+          the intent-filter is what restricts who can actually reach it.
+        -->
+        <receiver
+            android:name=".trigger.time.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!--
+          Hosts the Wi-Fi network callback and, when selected, the usage-stats
+          poller. Started only when a rule needs it, so a purely time/location
+          setup never shows a persistent notification.
+        -->
+        <service
+            android:name=".service.RemiitMonitorService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Watches Wi-Fi connections and app launches so user-defined reminder rules can fire while the app is closed" />
+        </service>
+
+        <!--
+          The instant app-launch detector. Reads only which package came to the
+          foreground; see res/xml/accessibility_service_config.xml, which grants
+          no content-retrieval capability.
+        -->
+        <service
+            android:name=".trigger.applaunch.RemiitAccessibilityService"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+    </application>
 
 </manifest>
