@@ -4,7 +4,7 @@ import android.util.Log
 import com.rahulgorai.remiit.data.model.MatchMode
 import com.rahulgorai.remiit.data.model.ReminderRule
 import com.rahulgorai.remiit.data.repo.RuleRepository
-import com.rahulgorai.remiit.delivery.ReminderDispatcher
+import com.rahulgorai.remiit.delivery.ReminderDelivery
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Clock
@@ -14,13 +14,13 @@ import java.time.temporal.ChronoUnit
 /**
  * Decides whether a satisfied trigger actually becomes a reminder.
  *
- * Sits between the trigger sources and [ReminderDispatcher] and owns three
+ * Sits between the trigger sources and [ReminderDelivery] and owns three
  * things they do not: combining triggers under [MatchMode], enforcing
  * [com.rahulgorai.remiit.data.model.RuleConstraints], and recording the fire.
  */
 class RuleEngine(
     private val repository: RuleRepository,
-    private val dispatcher: ReminderDispatcher,
+    private val dispatcher: ReminderDelivery,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : TriggerSink {
 

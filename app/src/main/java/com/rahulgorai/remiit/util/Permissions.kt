@@ -43,11 +43,7 @@ object Permissions {
 
     fun canScheduleExactAlarms(context: Context): Boolean {
         val manager = context.getSystemService(AlarmManager::class.java) ?: return false
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            manager.canScheduleExactAlarms()
-        } else {
-            true
-        }
+        return manager.canScheduleExactAlarms()
     }
 
     /**
@@ -89,8 +85,14 @@ object Permissions {
     fun exactAlarmSettings(context: Context): Intent =
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, appUri(context))
 
+    /**
+     * The per-app full-screen-intent toggle. The Settings constant only exists
+     * from API 34, so the action string is inlined — referencing the constant
+     * would compile it in as a literal anyway, but only after a lint warning.
+     * On API 33 the restriction does not exist and this screen is never reached.
+     */
     fun fullScreenIntentSettings(context: Context): Intent =
-        Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, appUri(context))
+        Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", appUri(context))
 
     fun usageAccessSettings(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
 

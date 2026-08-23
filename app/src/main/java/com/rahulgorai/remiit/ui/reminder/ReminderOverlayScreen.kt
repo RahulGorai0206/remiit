@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rahulgorai.remiit.R
@@ -151,7 +152,7 @@ fun ReminderOverlayScreen(
                         Icon(Icons.Default.Check, contentDescription = null)
                         Spacer(Modifier.size(12.dp))
                         Text(
-                            text = stringRes(R.string.action_complete),
+                            text = stringResource(R.string.action_complete),
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
@@ -171,7 +172,7 @@ fun ReminderOverlayScreen(
                         Icon(Icons.Default.Close, contentDescription = null)
                         Spacer(Modifier.size(12.dp))
                         Text(
-                            text = stringRes(R.string.action_incomplete),
+                            text = stringResource(R.string.action_incomplete),
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
@@ -184,7 +185,7 @@ fun ReminderOverlayScreen(
                         shape = MaterialTheme.shapes.extraLarge,
                     ) {
                         Text(
-                            text = stringRes(R.string.action_dismiss),
+                            text = stringResource(R.string.action_dismiss),
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
@@ -197,7 +198,7 @@ fun ReminderOverlayScreen(
                             Icon(Icons.Default.Snooze, contentDescription = null)
                             Spacer(Modifier.size(8.dp))
                             Text(
-                                text = "${stringRes(R.string.action_snooze)} " +
+                                text = "${stringResource(R.string.action_snooze)} " +
                                     "${rule.delivery.snoozeMinutes} min",
                             )
                         }
@@ -260,7 +261,3 @@ private fun PulsingHalo(active: Boolean) {
         }
     }
 }
-
-@Composable
-private fun stringRes(id: Int): String =
-    androidx.compose.ui.platform.LocalContext.current.getString(id)

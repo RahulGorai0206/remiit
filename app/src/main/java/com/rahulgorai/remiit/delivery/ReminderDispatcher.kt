@@ -26,10 +26,10 @@ import com.rahulgorai.remiit.util.requestCodeFor
  */
 class ReminderDispatcher(
     private val context: Context,
-) {
+) : ReminderDelivery {
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
 
-    fun deliver(rule: ReminderRule, eventId: Long, triggerSummary: String) {
+    override fun deliver(rule: ReminderRule, eventId: Long, triggerSummary: String) {
         NotificationChannels.ensureCreated(context)
 
         val config = rule.delivery

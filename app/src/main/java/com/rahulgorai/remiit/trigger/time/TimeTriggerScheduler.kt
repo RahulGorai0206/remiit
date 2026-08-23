@@ -5,7 +5,6 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
@@ -37,11 +36,7 @@ class TimeTriggerScheduler(
      * so rather than let the user think a 09:00 reminder is guaranteed.
      */
     val canScheduleExact: Boolean
-        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            alarmManager?.canScheduleExactAlarms() == true
-        } else {
-            true
-        }
+        get() = alarmManager?.canScheduleExactAlarms() == true
 
     /** Arms the next fire for every time trigger on [rule]. */
     fun schedule(rule: ReminderRule) {
