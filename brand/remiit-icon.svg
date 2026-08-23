@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Remiit icon master.
+
+  The single source for anything outside the app: a GitHub social image, a
+  README badge, a store listing. The path data here is byte-identical to
+  app/src/main/res/drawable/ic_launcher_foreground.xml — SVG and Android
+  VectorDrawable share path syntax, so the two cannot drift as long as edits
+  are copied across verbatim.
+
+  The check mark is a hole punched by evenodd fill, not a lighter-coloured
+  shape on top. That is what lets the same geometry serve as the launcher
+  icon, the Android 13+ monochrome themed icon, and the white notification
+  silhouette without being redrawn three times.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512">
+  <defs>
+    <linearGradient id="plate" x1="6" y1="0" x2="102" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B4569"/>
+      <stop offset="0.55" stop-color="#31628D"/>
+      <stop offset="1" stop-color="#4E8CC0"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="33" cy="28" r="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bell" x1="54" y1="22" x2="54" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E4EFFA"/>
+    </linearGradient>
+    <linearGradient id="trim" x1="54" y1="16" x2="54" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDEAF8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="108" height="108" fill="url(#plate)"/>
+  <rect width="108" height="108" fill="url(#sheen)"/>
+
+  <!-- 0.88 about the canvas centre keeps the mark inside the 72dp adaptive-icon safe zone. -->
+  <g transform="translate(54,54) scale(0.88) translate(-54,-54)">
+    <path fill="url(#bell)" fill-rule="evenodd"
+          d="M54,25 C40.7,25 31,35.4 31,49.5 V56 C31,62.5 28.2,66.6 24.5,70 H83.5 C79.8,66.6 77,62.5 77,56 V49.5 C77,35.4 67.3,25 54,25 Z M44.121,48.879 L48.5,53.257 L63.879,37.879 L68.121,42.121 L48.5,61.743 L39.879,53.121 Z"/>
+    <path fill="url(#trim)"
+          d="M48,22 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z M25.5,68.5 H82.5 A4.5,4.5 0 0,1 82.5,77.5 H25.5 A4.5,4.5 0 0,1 25.5,68.5 Z M44.6,80.5 H63.4 C63.4,85.7 59.2,89.5 54,89.5 C48.8,89.5 44.6,85.7 44.6,80.5 Z"/>
+  </g>
+</svg>

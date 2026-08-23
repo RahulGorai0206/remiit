@@ -15,7 +15,7 @@
     <!-- Applied at launch, handed off to Theme.Remiit once Compose draws. -->
     <style name="Theme.Remiit.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.Remiit</item>
     </style>
 

@@ -6,6 +6,16 @@ and, separately, with how loudly it announces itself.
 
 Targets Android 13 (API 33) and above. Distributed as sideloaded APKs.
 
+## Icon
+
+A bell with a check mark cut out of it as negative space, on the app's own
+primary blue. The check is a hole rather than a second-colour shape, which is
+what lets one set of paths serve the launcher icon, the Android 13+ monochrome
+themed icon and the white notification silhouette without being redrawn.
+
+`brand/remiit-icon.svg` is the master for anything outside the app; its path
+data is identical to `ic_launcher_foreground.xml`, so copy edits across verbatim.
+
 ## How a rule works
 
 A rule is one self-contained document: triggers, delivery config and constraints
