@@ -1,0 +1,106 @@
+name: Build and Upload Release APKs
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags matching v*, e.g., v1.0.0
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write # Needed for creating a release
+
+    steps:
+      - name: Checkout code
+        # fetch-depth: 0 so `git rev-list -n 1 HEAD` in app/build.gradle.kts
+        # resolves the commit for the BuildConfig.GIT_COMMIT_HASH field.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Restores the Gradle user home (dependencies, wrapper, build cache)
+      # warmed by the cache-warmup workflow on main. Read-only: a cache saved
+      # under refs/tags/vX can never be read by another tag, so writing one
+      # would just burn storage against the repo's 10 GB quota.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Decode Keystore
+        id: decode_keystore
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'keystore.jks'
+          encodedString: ${{ secrets.KEYSTORE_BASE64 }}
+
+      # Extract the version string from the git tag: "refs/tags/v2.3.1" → "2.3.1"
+      - name: Extract version from tag
+        id: version
+        run: |
+          RAW_TAG="${GITHUB_REF#refs/tags/}"   # strip "refs/tags/" → "v2.3.1"
+          VERSION="${RAW_TAG#v}"               # strip leading "v"  → "2.3.1"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION (tag: $RAW_TAG)"
+
+      - name: Build Release APKs
+        run: ./gradlew assembleRelease
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
+          KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.filePath }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      # ABI splits produce app-arm64-v8a-release.apk and
+      # app-armeabi-v7a-release.apk. Rename to app-v<version>-<abi>.apk so the
+      # release assets are self-describing.
+      - name: Rename APKs with version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          cd app/build/outputs/apk/release
+          for file in *.apk; do
+            if [ -f "$file" ]; then
+              new_name=$(echo "$file" | sed -E "s/^app-(.*)-release\.apk$/app-v${VERSION}-\1.apk/")
+              if [ "$new_name" = "$file" ]; then
+                new_name=$(echo "$file" | sed -E "s/^app-release\.apk$/app-v${VERSION}.apk/")
+              fi
+              if [ "$new_name" = "$file" ]; then
+                new_name=$(echo "$file" | sed "s/\.apk$/-v${VERSION}.apk/")
+              fi
+              mv "$file" "$new_name"
+              echo "Renamed $file to $new_name"
+            fi
+          done
+          ls -la
+
+      # The R8 mapping is the only way to read a release stack trace. It is not
+      # attached to the release (it would let anyone deobfuscate the APK) but is
+      # retained as a build artifact for the life of the run.
+      - name: Upload R8 mapping
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8-mapping-${{ steps.version.outputs.VERSION }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Create Release and Upload APKs
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

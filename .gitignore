@@ -1,0 +1,23 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Module build outputs (the root-level /build entry does not cover these).
+build/
+/app/build
+
+# Signing material must never be committed; CI gets it from KEYSTORE_BASE64.
+*.jks
+*.keystore

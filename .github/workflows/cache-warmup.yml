@@ -1,0 +1,48 @@
+name: Warm Gradle Cache
+
+# GitHub only lets a workflow run restore caches created on its own ref or on
+# the default branch. The release workflow runs on refs/tags/v*, and every tag
+# is a separate ref — so a cache it saves is unreachable from the next tag.
+#
+# This job runs on main, which every other ref *can* read from, so release
+# builds start warm instead of re-resolving the whole dependency graph
+# (Compose BOM, Room/KSP, Play Services) from scratch.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# One warm-up at a time; a newer commit supersedes an in-flight run.
+concurrency:
+  group: warm-gradle-cache
+  cancel-in-progress: true
+
+jobs:
+  warm-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # Compiling the release variant primes the same dependency graph and
+      # Kotlin/KSP outputs the tag build needs. It stops short of packaging, so
+      # no keystore or signing secret is required here.
+      - name: Compile release variant and run unit tests
+        run: ./gradlew :app:compileReleaseKotlin :app:testDebugUnitTest
