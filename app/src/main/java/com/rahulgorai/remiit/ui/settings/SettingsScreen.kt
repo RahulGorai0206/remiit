@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -60,6 +61,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SettingsScreen(
     onOpenPermissions: () -> Unit,
+    /** Footprint of the floating navigation pill this screen scrolls beneath. */
+    bottomInset: Dp,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -173,7 +176,7 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(48.dp + padding.calculateBottomPadding()))
+            Spacer(Modifier.height(48.dp + padding.calculateBottomPadding() + bottomInset))
         }
     }
 }

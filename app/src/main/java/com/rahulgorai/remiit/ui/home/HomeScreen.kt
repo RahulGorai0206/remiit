@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
@@ -52,6 +54,8 @@ fun HomeScreen(
     onAddRule: () -> Unit,
     onEditRule: (ruleId: String, title: String) -> Unit,
     onOpenPermissions: () -> Unit,
+    /** Footprint of the floating navigation pill this screen scrolls beneath. */
+    bottomInset: Dp,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
     val rules by viewModel.rules.collectAsStateWithLifecycle()
@@ -92,7 +96,11 @@ fun HomeScreen(
                 shape = fabShape,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.border(RemiitBorders.interactive(), fabShape),
+                // Lifted clear of the pill, which the Scaffold knows nothing
+                // about because the pill is an overlay rather than a bottom bar.
+                modifier = Modifier
+                    .padding(bottom = bottomInset)
+                    .border(RemiitBorders.interactive(), fabShape),
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.size(10.dp))
@@ -100,29 +108,36 @@ fun HomeScreen(
             }
         },
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Box(Modifier.fillMaxSize()) {
             AnimatedVisibility(
                 visible = rules.isEmpty(),
                 enter = fadeIn() + scaleIn(initialScale = 0.94f),
                 exit = fadeOut(),
             ) {
-                EmptyState(modifier = Modifier.fillMaxSize())
+                EmptyState(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(bottom = bottomInset)
+                )
             }
 
             AnimatedVisibility(visible = rules.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .consumeWindowInsets(padding),
+                    // Every inset lives in contentPadding, never on the list
+                    // itself. Padding the list would clip it to the safe area,
+                    // and the whole point is that rules pass underneath the
+                    // floating pill rather than stopping short of it.
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        top = 4.dp,
-                        // Clears the FAB. The bottom bar is already accounted
-                        // for by the inset this screen is laid out inside.
-                        bottom = 96.dp,
+                        top = padding.calculateTopPadding() + 4.dp,
+                        // Clears the FAB, then the pill, then the gesture bar,
+                        // so the last rule can still be scrolled into the open.
+                        bottom = padding.calculateBottomPadding() + bottomInset + 96.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {

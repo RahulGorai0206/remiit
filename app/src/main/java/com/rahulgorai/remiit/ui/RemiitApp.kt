@@ -13,18 +13,13 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,6 +36,27 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import com.rahulgorai.remiit.ui.theme.RemiitMotion
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavBackStackEntry
@@ -74,11 +90,11 @@ private val tabs = listOf(
 private val tabRoutes = tabs.map { it.route }
 
 /**
- * Pre-measure fallback for the bar's body, from the Material token. Replaced by
- * the real measurement on the first frame the bar is laid out; it only has to be
- * close enough that nothing jumps before then.
+ * Pre-measure fallback for the pill's footprint, excluding the gesture inset it
+ * floats above. Replaced by the real measurement on the first frame the bar is
+ * laid out; it only has to be close enough that nothing jumps before then.
  */
-private val NavigationBarBodyHeight = 64.dp
+private val NavigationBarBodyHeight = 92.dp
 
 @Composable
 fun RemiitApp() {
@@ -144,37 +160,134 @@ fun RemiitApp() {
     }
 }
 
+/**
+ * The bottom navigation, as a pill floating over the content.
+ *
+ * Detached from the edges rather than welded to them: inset on both sides,
+ * lifted clear of the gesture bar, fully rounded, with a shadow to say it is
+ * above the page rather than part of it. That reading is only honest because
+ * the bar is an overlay — it genuinely does sit on top of the screen rather
+ * than occupying a slot in it.
+ *
+ * Built from a Row rather than [androidx.compose.material3.NavigationBar]
+ * because that component is a full-bleed edge-anchored surface by definition:
+ * it draws its own container across the whole width and applies its own system
+ * insets, both of which are exactly what a floating pill must not do.
+ */
 @Composable
 private fun RemiitNavigationBar(
     currentRoute: String?,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier) {
-        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-            tabs.forEach { tab ->
-                NavigationBarItem(
-                    selected = currentRoute == tab.route,
-                    onClick = { onSelect(tab.route) },
-                    icon = { Icon(tab.icon, contentDescription = tab.label) },
-                    label = { Text(tab.label) },
-                    colors = NavigationBarItemDefaults.colors(
-                        // A filled pill behind the selected icon, so the current
-                        // tab is legible without relying on the icon's tint.
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            // The pill clears the gesture bar rather than sitting behind it,
+            // and the margin below is what makes it read as floating.
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            border = RemiitBorders.container(),
+            // A real shadow, not just a tonal step. The pill overlaps scrolling
+            // content, so it needs to separate from whatever happens to pass
+            // underneath it rather than from one fixed background colour.
+            shadowElevation = 8.dp,
+        ) {
+            BoxWithConstraints(Modifier.padding(6.dp)) {
+                val slotWidth = maxWidth / tabs.size
+
+                // The indicator is one object that moves, not three that take
+                // turns being visible. Keeping the last valid tab means it does
+                // not dart back to the first one while the pill animates away on
+                // a screen that has no tab selected at all.
+                val selectedIndex = tabs.indexOfFirst { it.route == currentRoute }
+                var lastIndex by remember { mutableIntStateOf(0) }
+                if (selectedIndex >= 0) lastIndex = selectedIndex
+
+                val indicatorOffset by animateDpAsState(
+                    targetValue = slotWidth * lastIndex,
+                    animationSpec = RemiitMotion.spatial(),
+                    label = "tab-indicator",
                 )
+
+                Box(
+                    modifier = Modifier
+                        .offset(x = indicatorOffset)
+                        .width(slotWidth)
+                        .height(PillTabHeight)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(PillTabHeight),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        PillTab(
+                            tab = tab,
+                            selected = index == lastIndex,
+                            onClick = { onSelect(tab.route) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                    }
+                }
             }
         }
-        HorizontalDivider(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(RemiitBorders.CONTAINER_WIDTH),
-            color = MaterialTheme.colorScheme.outlineVariant,
+    }
+}
+
+/** Fixed so the travelling indicator can match the items without measuring them. */
+private val PillTabHeight = 56.dp
+
+@Composable
+private fun PillTab(
+    tab: TopLevelTab,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Only the content tints here — the filled shape behind it belongs to the
+    // shared indicator, which slides between tabs rather than being redrawn.
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        animationSpec = RemiitMotion.effects(),
+        label = "tab-content",
+    )
+
+    Column(
+        modifier = modifier
+            .clip(CircleShape)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = tab.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+            maxLines = 1,
         )
     }
 }
@@ -300,23 +413,23 @@ private fun RemiitNavHost(navController: NavHostController, tabBottomInset: Dp) 
         popExitTransition = { Push.popExit(this) },
     ) {
         composable(Routes.HOME) {
-            TabScreen(tabBottomInset) {
-                HomeScreen(
-                    onAddRule = { navController.navigate(Routes.builder()) },
-                    onEditRule = { ruleId, title ->
-                        navController.navigate(Routes.builder(ruleId, title))
-                    },
-                    onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
-                )
-            }
+            HomeScreen(
+                onAddRule = { navController.navigate(Routes.builder()) },
+                onEditRule = { ruleId, title ->
+                    navController.navigate(Routes.builder(ruleId, title))
+                },
+                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                bottomInset = tabBottomInset,
+            )
         }
 
-        composable(Routes.HISTORY) { TabScreen(tabBottomInset) { HistoryScreen() } }
+        composable(Routes.HISTORY) { HistoryScreen(bottomInset = tabBottomInset) }
 
         composable(Routes.SETTINGS) {
-            TabScreen(tabBottomInset) {
-                SettingsScreen(onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) })
-            }
+            SettingsScreen(
+                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                bottomInset = tabBottomInset,
+            )
         }
 
         composable(Routes.PERMISSIONS) {
@@ -345,20 +458,4 @@ private fun RemiitNavHost(navController: NavHostController, tabBottomInset: Dp) 
             )
         }
     }
-}
-
-/**
- * A top-level screen, holding open the space the bottom bar occupies.
- *
- * The inset is constant — reserved whether the bar is currently on screen or
- * sliding away — so a tab screen is measured exactly once and never shifts
- * underneath a transition.
- */
-@Composable
-private fun TabScreen(bottomInset: Dp, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = bottomInset)
-    ) { content() }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.data.model.ReminderOutcome
@@ -39,7 +40,11 @@ private val stamp = DateTimeFormatter.ofPattern("d MMM, HH:mm")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
+fun HistoryScreen(
+    /** Footprint of the floating navigation pill this screen scrolls beneath. */
+    bottomInset: Dp,
+    viewModel: HistoryViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
@@ -91,7 +96,7 @@ fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
                 start = 16.dp,
                 end = 16.dp,
                 top = padding.calculateTopPadding() + 16.dp,
-                bottom = padding.calculateBottomPadding() + 16.dp,
+                bottom = padding.calculateBottomPadding() + bottomInset + 16.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
