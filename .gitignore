@@ -1,23 +1,55 @@
+# Gradle files
+.gradle/
+build/
+/*/build/
+
+# Built artifacts
+*.apk
+*.aab
+*.dm
+release/
+
+# IntelliJ IDEA / Android Studio
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+*.iws
+*.ipr
+
+# Local configuration
 local.properties
 
-# Module build outputs (the root-level /build entry does not cover these).
-build/
-/app/build
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
 
-# Signing material must never be committed; CI gets it from KEYSTORE_BASE64.
+# Signing files
 *.jks
 *.keystore
+*.p12
+*.pepk
+
+# Log files
+*.log
+
+# Captures
+/captures
+
+# NDK
+.externalNativeBuild
+.cxx
+obj/
+
+# Proguard
+proguard/
+
+# Google Services (optional, but often ignored for open source or if using multiple environments)
+# google-services.json
+
+# Screenshots
+screenshots/

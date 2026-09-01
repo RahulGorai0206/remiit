@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Snooze
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -45,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.rahulgorai.remiit.R
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
 import kotlinx.coroutines.delay
@@ -148,6 +150,10 @@ fun ReminderOverlayScreen(
                             .fillMaxWidth()
                             .height(72.dp),
                         shape = MaterialTheme.shapes.extraLarge,
+                        // A reminder is answered half-awake, often in the dark.
+                        // The border is what makes the two targets unmistakable
+                        // when the eye has not adjusted yet.
+                        border = RemiitBorders.interactive(),
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null)
                         Spacer(Modifier.size(12.dp))
@@ -168,6 +174,7 @@ fun ReminderOverlayScreen(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
+                        border = RemiitBorders.interactive(),
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null)
                         Spacer(Modifier.size(12.dp))
@@ -183,6 +190,7 @@ fun ReminderOverlayScreen(
                             .fillMaxWidth()
                             .height(72.dp),
                         shape = MaterialTheme.shapes.extraLarge,
+                        border = RemiitBorders.interactive(),
                     ) {
                         Text(
                             text = stringResource(R.string.action_dismiss),
@@ -193,15 +201,26 @@ fun ReminderOverlayScreen(
 
                 if (rule.delivery.snoozeMinutes > 0) {
                     Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onSnooze) {
-                            Icon(Icons.Default.Snooze, contentDescription = null)
-                            Spacer(Modifier.size(8.dp))
-                            Text(
-                                text = "${stringResource(R.string.action_snooze)} " +
-                                    "${rule.delivery.snoozeMinutes} min",
-                            )
-                        }
+                    OutlinedButton(
+                        onClick = onSnooze,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                        border = BorderStroke(
+                            RemiitBorders.CONTAINER_WIDTH,
+                            MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                    ) {
+                        Icon(Icons.Default.Snooze, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text(
+                            text = "${stringResource(R.string.action_snooze)} " +
+                                "${rule.delivery.snoozeMinutes} min",
+                        )
                     }
                 }
             }

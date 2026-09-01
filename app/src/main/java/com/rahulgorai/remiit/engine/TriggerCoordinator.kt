@@ -3,17 +3,13 @@ package com.rahulgorai.remiit.engine
 import android.content.Context
 import android.util.Log
 import com.rahulgorai.remiit.data.model.ReminderRule
-import com.rahulgorai.remiit.data.prefs.AppLaunchDetectorKind
-import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.service.RemiitMonitorService
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.time.TimeTriggerScheduler
 import com.rahulgorai.remiit.trigger.wifi.WifiTriggerMonitor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -30,7 +26,6 @@ import com.rahulgorai.remiit.data.repo.RuleRepository
 class TriggerCoordinator(
     private val context: Context,
     private val repository: RuleRepository,
-    private val settings: SettingsStore,
     private val timeScheduler: TimeTriggerScheduler,
     private val locationMonitor: LocationTriggerMonitor,
     private val wifiMonitor: WifiTriggerMonitor,
@@ -39,12 +34,9 @@ class TriggerCoordinator(
 ) {
     /** Starts following the rule table. Called once, from the Application. */
     fun start() {
-        combine(
-            repository.observeEnabledRules(),
-            settings.appLaunchDetector,
-        ) { rules, detector -> rules to detector }
+        repository.observeEnabledRules()
             .distinctUntilChanged()
-            .onEach { (rules, detector) -> apply(rules, detector) }
+            .onEach(::apply)
             .launchIn(scope)
     }
 
@@ -55,16 +47,10 @@ class TriggerCoordinator(
      * the OS has thrown away alarms and geofences without telling the app.
      */
     suspend fun reconcileAll() {
-        val rules = repository.enabledRules()
-        val detector = currentDetectorKind()
-        apply(rules, detector)
+        apply(repository.enabledRules())
     }
 
-    private suspend fun currentDetectorKind(): AppLaunchDetectorKind =
-        runCatching { settings.appLaunchDetector.first() }
-            .getOrDefault(AppLaunchDetectorKind.ACCESSIBILITY)
-
-    private suspend fun apply(rules: List<ReminderRule>, detector: AppLaunchDetectorKind) {
+    private suspend fun apply(rules: List<ReminderRule>) {
         try {
             timeScheduler.rescheduleAll(rules)
             locationMonitor.sync(rules)
@@ -76,9 +62,9 @@ class TriggerCoordinator(
             // needs a live process. A setup of purely time and location rules
             // runs with no persistent notification at all, because AlarmManager
             // and geofences are evaluated by the OS.
-            val needsService = rules.any { it.wifiTriggers.isNotEmpty() } ||
-                (detector == AppLaunchDetectorKind.USAGE_STATS &&
-                    rules.any { it.appLaunchTriggers.isNotEmpty() })
+            val needsService = rules.any {
+                it.wifiTriggers.isNotEmpty() || it.appLaunchTriggers.isNotEmpty()
+            }
 
             if (needsService) {
                 RemiitMonitorService.start(context)

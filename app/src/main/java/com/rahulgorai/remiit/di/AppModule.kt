@@ -11,6 +11,8 @@ import com.rahulgorai.remiit.engine.RuleEngine
 import com.rahulgorai.remiit.engine.TriggerCoordinator
 import com.rahulgorai.remiit.engine.TriggerSink
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
+import com.rahulgorai.remiit.trigger.applaunch.DefaultPackageIntrospector
+import com.rahulgorai.remiit.trigger.applaunch.PackageIntrospector
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.time.TimeTriggerScheduler
 import com.rahulgorai.remiit.trigger.wifi.WifiTriggerMonitor
@@ -75,9 +77,10 @@ val appModule = module {
             clock = get(),
         )
     }
+    single<PackageIntrospector> { DefaultPackageIntrospector(androidContext()) }
     single {
         AppLaunchDispatcher(
-            context = androidContext(),
+            packages = get(),
             sink = get(),
             scope = get(),
             clock = get(),
@@ -88,7 +91,6 @@ val appModule = module {
         TriggerCoordinator(
             context = androidContext(),
             repository = get(),
-            settings = get(),
             timeScheduler = get(),
             locationMonitor = get(),
             wifiMonitor = get(),

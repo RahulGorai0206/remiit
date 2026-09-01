@@ -33,6 +33,14 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!--
+      Only for WifiManager.startScan, which backs the rule builder's network
+      picker. Deliberately not NEARBY_WIFI_DEVICES: that permission covers Wi-Fi
+      Aware, P2P, RTT and local-only hotspot, none of which this app uses, and it
+      is explicitly *not* a substitute for location on startScan/getScanResults.
+      Asking for it would be a runtime prompt that buys the user nothing.
+    -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- Alarm-mode vibration. -->
@@ -139,9 +147,9 @@
         </receiver>
 
         <!--
-          Hosts the Wi-Fi network callback and, when selected, the usage-stats
-          poller. Started only when a rule needs it, so a purely time/location
-          setup never shows a persistent notification.
+          Hosts the Wi-Fi network callback and the usage-stats poller. Started
+          only when a rule needs it, so a purely time/location setup never shows
+          a persistent notification.
         -->
         <service
             android:name=".service.RemiitMonitorService"
@@ -153,23 +161,6 @@
                 android:value="Watches Wi-Fi connections and app launches so user-defined reminder rules can fire while the app is closed" />
         </service>
 
-        <!--
-          The instant app-launch detector. Reads only which package came to the
-          foreground; see res/xml/accessibility_service_config.xml, which grants
-          no content-retrieval capability.
-        -->
-        <service
-            android:name=".trigger.applaunch.RemiitAccessibilityService"
-            android:exported="true"
-            android:label="@string/accessibility_service_label"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
     </application>
 
 </manifest>

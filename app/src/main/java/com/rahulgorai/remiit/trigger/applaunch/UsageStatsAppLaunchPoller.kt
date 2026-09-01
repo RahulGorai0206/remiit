@@ -16,15 +16,16 @@ import java.time.Clock
 /**
  * App-launch detection by polling [UsageStatsManager].
  *
- * The Play-policy-safe alternative to the accessibility route. It needs only
- * the "usage access" special grant, but there is no callback — the only way to
- * learn about a foreground change is to ask, so this polls on a short interval
- * from inside the monitor foreground service.
+ * The only app-launch detector. Android exposes no callback for "another app
+ * came forward" — the sole route open to an ordinary app is the "usage access"
+ * special grant, and even that has to be polled, so this runs a short loop
+ * inside the monitor foreground service.
  *
- * That has real costs the accessibility path does not: up to
- * [POLL_INTERVAL_MILLIS] of latency, a permanent foreground-service
- * notification, and steady (if small) battery use. Which is why the choice is
- * surfaced to the user rather than decided here.
+ * The costs are real and unavoidable: up to [POLL_INTERVAL_MILLIS] of latency,
+ * a permanent foreground-service notification, and steady (if small) battery
+ * use. The alternative — an AccessibilityService — is instant and cheaper, but
+ * using accessibility for this is against Google Play policy and asks the user
+ * for a grant that can read the whole screen. Not worth it for a second of lag.
  */
 class UsageStatsAppLaunchPoller(
     private val context: Context,

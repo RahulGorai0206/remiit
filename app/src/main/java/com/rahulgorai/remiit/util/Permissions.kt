@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.rahulgorai.remiit.trigger.applaunch.RemiitAccessibilityService
 import com.rahulgorai.remiit.trigger.applaunch.UsageStatsAppLaunchPoller
 
 /**
@@ -58,11 +57,12 @@ object Permissions {
         return manager.canUseFullScreenIntent()
     }
 
+    /**
+     * The only app-launch detector. A special-access grant made through
+     * Settings > Usage access, never a runtime prompt.
+     */
     fun hasUsageAccess(context: Context): Boolean =
         UsageStatsAppLaunchPoller.hasUsageAccess(context)
-
-    fun hasAccessibilityService(context: Context): Boolean =
-        RemiitAccessibilityService.isEnabled(context)
 
     /**
      * Manufacturer battery managers are the most common cause of "it worked for
@@ -95,8 +95,6 @@ object Permissions {
         Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", appUri(context))
 
     fun usageAccessSettings(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-
-    fun accessibilitySettings(): Intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
 
     fun appDetailsSettings(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri(context))

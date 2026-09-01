@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Status-bar icon: the same orbit-and-bead mark as the launcher.
+
+  A notification icon is drawn as a silhouette — Android throws away colour and
+  keeps only alpha — so the mark is stated in one flat white and relies on the
+  gap between orbit and bead to stay readable at 24dp.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -6,9 +13,9 @@
     android:viewportHeight="108">
 
     <!--
-      Scaled up about the centre: a notification icon has no adaptive-icon mask
-      to survive, so the artwork can use the full canvas rather than the 72dp
-      safe zone the launcher layers are held back to.
+      Scaled up about the centre: there is no adaptive-icon mask to survive
+      here, so the artwork can use the full canvas rather than the 72dp safe
+      zone the launcher layers are held back to.
     -->
     <group
         android:pivotX="54"
@@ -17,12 +24,13 @@
         android:scaleY="1.28">
 
         <path
-            android:fillColor="#FFFFFFFF"
-            android:fillType="evenOdd"
-            android:pathData="M54,25 C40.7,25 31,35.4 31,49.5 V56 C31,62.5 28.2,66.6 24.5,70 H83.5 C79.8,66.6 77,62.5 77,56 V49.5 C77,35.4 67.3,25 54,25 Z M44.121,48.879 L48.5,53.257 L63.879,37.879 L68.121,42.121 L48.5,61.743 L39.879,53.121 Z" />
+            android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="12"
+            android:strokeLineCap="round" />
 
         <path
             android:fillColor="#FFFFFFFF"
-            android:pathData="M48,22 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z M25.5,68.5 H82.5 A4.5,4.5 0 0,1 82.5,77.5 H25.5 A4.5,4.5 0 0,1 25.5,68.5 Z M44.6,80.5 H63.4 C63.4,85.7 59.2,89.5 54,89.5 C48.8,89.5 44.6,85.7 44.6,80.5 Z" />
+            android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
     </group>
 </vector>

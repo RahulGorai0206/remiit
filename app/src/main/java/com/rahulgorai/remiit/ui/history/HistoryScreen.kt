@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.data.model.ReminderOutcome
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -40,7 +42,17 @@ private val stamp = DateTimeFormatter.ofPattern("d MMM, HH:mm")
 fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("History") }) }) { padding ->
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text("History") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
+            )
+        },
+    ) { padding ->
         if (state.events.isEmpty()) {
             Column(
                 modifier = Modifier
@@ -86,6 +98,7 @@ fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
+                    border = RemiitBorders.container(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -129,7 +142,14 @@ private fun CompletionSummary(completed: Int, total: Int) {
     // as failures would conflate "I didn't do it" with "I wasn't looking at my
     // phone", and the first is the only one worth tracking.
     val rate = if (total == 0) 0f else completed.toFloat() / total
-    Card(shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        border = RemiitBorders.container(),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Column(Modifier.padding(20.dp)) {
             Text("Completion rate", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))

@@ -11,8 +11,6 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.rahulgorai.remiit.R
-import com.rahulgorai.remiit.data.prefs.AppLaunchDetectorKind
-import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.delivery.NotificationChannels
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
 import com.rahulgorai.remiit.trigger.applaunch.UsageStatsAppLaunchPoller
@@ -21,8 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import org.koin.android.ext.android.inject
 
 /**
@@ -38,7 +34,6 @@ class RemiitMonitorService : Service() {
 
     private val wifiMonitor: WifiTriggerMonitor by inject()
     private val appLaunchDispatcher: AppLaunchDispatcher by inject()
-    private val settings: SettingsStore by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var usageStatsPoller: UsageStatsAppLaunchPoller? = null
@@ -49,25 +44,21 @@ class RemiitMonitorService : Service() {
         startForegroundCompat()
 
         wifiMonitor.start()
+        startPoller()
+    }
 
-        // The poller is created and torn down as the preference changes, so
-        // switching detectors in Settings takes effect without a restart.
-        settings.appLaunchDetector
-            .onEach { kind ->
-                if (kind == AppLaunchDetectorKind.USAGE_STATS) {
-                    if (usageStatsPoller == null) {
-                        usageStatsPoller = UsageStatsAppLaunchPoller(
-                            context = this,
-                            dispatcher = appLaunchDispatcher,
-                            scope = scope,
-                        ).also { it.start() }
-                    }
-                } else {
-                    usageStatsPoller?.stop()
-                    usageStatsPoller = null
-                }
-            }
-            .launchIn(scope)
+    /**
+     * Usage-stats polling is the only app-launch detector. It no-ops without the
+     * usage-access grant, so starting it unconditionally is safe — the
+     * permissions screen is what tells the user it is missing.
+     */
+    private fun startPoller() {
+        if (usageStatsPoller != null) return
+        usageStatsPoller = UsageStatsAppLaunchPoller(
+            context = this,
+            dispatcher = appLaunchDispatcher,
+            scope = scope,
+        ).also { it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -75,6 +66,14 @@ class RemiitMonitorService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        // Re-arm rather than assuming onCreate did it. Every rule change calls
+        // start() on an already-running service, which lands here and not in
+        // onCreate — and that is the moment a callback that failed to register
+        // earlier (a permission the user has since granted, a restart after the
+        // OS killed the service) gets its second chance. start() is a no-op when
+        // the callback is already live.
+        wifiMonitor.start()
+        startPoller()
         // START_STICKY so the OS brings the service back if it is killed for
         // memory: a monitor that silently stays dead means rules stop firing
         // with no visible symptom.

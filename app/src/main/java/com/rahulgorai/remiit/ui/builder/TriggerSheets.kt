@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -47,7 +50,12 @@ import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.WifiEvent
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.wifi.WifiNetworks
+import com.rahulgorai.remiit.ui.components.PrimaryButton
+import com.rahulgorai.remiit.ui.components.SecondaryButton
+import com.rahulgorai.remiit.ui.components.TertiaryButton
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.util.Permissions
+import com.rahulgorai.remiit.util.openSettings
 import kotlinx.coroutines.tasks.await
 
 private val DAY_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -109,6 +117,7 @@ fun TimeTriggerEditor(
                     selected = kind == option,
                     onClick = { kind = option },
                     label = { Text(option.label) },
+                    border = RemiitBorders.interactive(),
                 )
             }
         }
@@ -128,6 +137,7 @@ fun TimeTriggerEditor(
                                 days = if (iso in days) days - iso else days + iso
                             },
                             label = { Text(label) },
+                            border = RemiitBorders.interactive(),
                         )
                     }
                 }
@@ -180,7 +190,8 @@ fun TimeTriggerEditor(
 
         Spacer(Modifier.height(20.dp))
 
-        Button(
+        PrimaryButton(
+            text = if (initial == null) "Add trigger" else "Update trigger",
             onClick = {
                 val minuteOfDay = timeState.hour * 60 + timeState.minute
                 val recurrence = when (kind) {
@@ -201,16 +212,26 @@ fun TimeTriggerEditor(
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (initial == null) "Add trigger" else "Update trigger") }
+        )
     }
 }
 
-/** Editor for a [Trigger.Wifi]. */
+/**
+ * Editor for a [Trigger.Wifi].
+ *
+ * The SSID is still free text — a rule can name a network that is nowhere near
+ * you — but typing one exactly is error-prone, so the networks in range are
+ * offered as a picker. Android has not let an app read the phone's *saved*
+ * networks since version 10, so "in range now" plus "already used in a rule" is
+ * as close to that list as it is possible to get.
+ */
 @Composable
 fun WifiTriggerEditor(
     initial: Trigger.Wifi?,
     knownSsids: Set<String>,
+    scan: WifiScanState,
     newId: () -> String,
+    onScan: () -> Unit,
     onConfirm: (Trigger.Wifi) -> Unit,
 ) {
     val context = LocalContext.current
@@ -218,8 +239,22 @@ fun WifiTriggerEditor(
     var event by remember { mutableStateOf(initial?.event ?: WifiEvent.CONNECTED) }
 
     val currentSsid = remember { WifiNetworks.currentSsid(context) }
-    val suggestions = remember(currentSsid, knownSsids) {
-        (listOfNotNull(currentSsid) + knownSsids).distinct()
+    val canList = remember(scan.canList) { WifiNetworks.canListNetworks(context) }
+
+    // Requested here as well as on the permissions screen, because this is the
+    // one moment the user can see what it buys them. Location is genuinely what
+    // Wi-Fi scanning needs: NEARBY_WIFI_DEVICES covers Aware, P2P, RTT and
+    // hotspot, and is not accepted by startScan or getScanResults.
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants -> if (grants.values.any { it }) onScan() }
+
+    // Scan on open: an empty picker that needs a button press first reads as
+    // broken rather than as merely idle.
+    LaunchedEffect(Unit) { if (canList) onScan() }
+
+    val choices = remember(currentSsid, knownSsids, scan.ssids) {
+        (listOfNotNull(currentSsid) + scan.ssids + knownSsids).distinct()
     }
 
     Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
@@ -243,18 +278,87 @@ fun WifiTriggerEditor(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        if (suggestions.isNotEmpty()) {
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Networks in range", style = MaterialTheme.typography.titleMedium)
+            TertiaryButton(
+                text = if (scan.scanning) "Scanning…" else "Rescan",
+                onClick = onScan,
+                enabled = canList && !scan.scanning,
+            )
+        }
+
+        if (scan.scanning) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
+        }
+
+        if (choices.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                suggestions.forEach { candidate ->
+                choices.forEach { candidate ->
                     FilterChip(
                         selected = ssid == candidate,
                         onClick = { ssid = candidate },
                         label = { Text(candidate, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        border = RemiitBorders.interactive(),
                     )
                 }
             }
         }
+
+        val locationMissing = !Permissions.hasFineLocation(context)
+        val hint = when {
+            locationMissing -> "Listing networks needs location permission — the same one " +
+                "the rule itself needs to read a network name."
+            !Permissions.areLocationServicesEnabled(context) ->
+                "Turn location services on to list networks."
+            !scan.wifiEnabled -> "Wi-Fi is off, so no networks can be listed. " +
+                "You can still type a name."
+            scan.scanned && choices.isEmpty() -> "No networks found. Android rate-limits " +
+                "scans to four every two minutes, so try again shortly."
+            else -> null
+        }
+        if (hint != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            if (locationMissing) {
+                SecondaryButton(
+                    text = "Grant location",
+                    onClick = {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else if (!Permissions.areLocationServicesEnabled(context)) {
+                SecondaryButton(
+                    text = "Open location settings",
+                    onClick = { context.openSettings(Permissions.locationSettings()) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "Android does not let apps read your phone's saved networks, so this " +
+                "lists what is in range plus networks you have used in a rule before.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Spacer(Modifier.height(16.dp))
         Text("Trigger on", style = MaterialTheme.typography.titleMedium)
@@ -272,7 +376,8 @@ fun WifiTriggerEditor(
         }
 
         Spacer(Modifier.height(20.dp))
-        Button(
+        PrimaryButton(
+            text = if (initial == null) "Add trigger" else "Update trigger",
             onClick = {
                 onConfirm(
                     Trigger.Wifi(id = initial?.id ?: newId(), ssid = ssid.trim(), event = event)
@@ -280,7 +385,7 @@ fun WifiTriggerEditor(
             },
             enabled = ssid.isNotBlank(),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (initial == null) "Add trigger" else "Update trigger") }
+        )
     }
 }
 
@@ -326,12 +431,12 @@ fun LocationTriggerEditor(
 
         Spacer(Modifier.height(8.dp))
 
-        TextButton(
+        SecondaryButton(
+            text = if (locating) "Getting location…" else "Use my current location",
             onClick = { locating = true },
             enabled = !locating && Permissions.hasFineLocation(context),
-        ) {
-            Text(if (locating) "Getting location…" else "Use my current location")
-        }
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         if (locating) {
             LaunchedEffect(Unit) {
@@ -402,10 +507,11 @@ fun LocationTriggerEditor(
         }
 
         Spacer(Modifier.height(20.dp))
-        Button(
+        PrimaryButton(
+            text = if (initial == null) "Add trigger" else "Update trigger",
             onClick = {
-                val lat = latitude ?: return@Button
-                val lng = longitude ?: return@Button
+                val lat = latitude ?: return@PrimaryButton
+                val lng = longitude ?: return@PrimaryButton
                 onConfirm(
                     Trigger.Location(
                         id = initial?.id ?: newId(),
@@ -420,7 +526,7 @@ fun LocationTriggerEditor(
             },
             enabled = latitude != null && longitude != null,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (initial == null) "Add trigger" else "Update trigger") }
+        )
     }
 }
 
@@ -503,7 +609,8 @@ fun AppLaunchTriggerEditor(
         }
 
         Spacer(Modifier.height(20.dp))
-        Button(
+        PrimaryButton(
+            text = if (initial == null) "Add trigger" else "Update trigger",
             onClick = {
                 onConfirm(
                     Trigger.AppLaunch(
@@ -515,7 +622,7 @@ fun AppLaunchTriggerEditor(
             },
             enabled = anyApp || selected.isNotEmpty(),
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (initial == null) "Add trigger" else "Update trigger") }
+        )
     }
 }
 

@@ -14,20 +14,6 @@ import kotlinx.coroutines.flow.map
 /** Follow the system setting, or override it. */
 enum class ThemeMode { AUTO, LIGHT, DARK }
 
-/**
- * Which mechanism watches for other apps being opened.
- *
- * Android gives no ordinary API for this, and the two available routes trade
- * off against each other rather than one being strictly better, so the choice
- * is the user's:
- *
- * - [ACCESSIBILITY] is instant and costs almost no battery, but needs an
- *   accessibility grant and is against Google Play policy for this use.
- * - [USAGE_STATS] is policy-safe and needs only the usage-access grant, but
- *   polls — so it lags by around a second and keeps a foreground service alive.
- */
-enum class AppLaunchDetectorKind { ACCESSIBILITY, USAGE_STATS }
-
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "remiit_settings")
 
 class SettingsStore(private val context: Context) {
@@ -35,7 +21,6 @@ class SettingsStore(private val context: Context) {
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
-        val APP_LAUNCH_DETECTOR = stringPreferencesKey("app_launch_detector")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val KNOWN_SSIDS = stringSetPreferencesKey("known_ssids")
     }
@@ -48,18 +33,12 @@ class SettingsStore(private val context: Context) {
     /** Material You. On by default — following the device accent is the point. */
     val dynamicColor: Flow<Boolean> = context.dataStore.data.map { it[Keys.DYNAMIC_COLOR] ?: true }
 
-    val appLaunchDetector: Flow<AppLaunchDetectorKind> = context.dataStore.data.map { prefs ->
-        prefs[Keys.APP_LAUNCH_DETECTOR]
-            ?.let { runCatching { AppLaunchDetectorKind.valueOf(it) }.getOrNull() }
-            ?: AppLaunchDetectorKind.ACCESSIBILITY
-    }
-
     val onboardingComplete: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ONBOARDING_DONE] ?: false }
 
     /**
-     * SSIDs the user has referenced before. The app never scans for networks, so
-     * this plus the currently-connected SSID is the whole picker.
+     * SSIDs the user has referenced before. Joined with the networks in range
+     * and the one currently connected to build the rule builder's picker.
      */
     val knownSsids: Flow<Set<String>> =
         context.dataStore.data.map { it[Keys.KNOWN_SSIDS] ?: emptySet() }
@@ -69,9 +48,6 @@ class SettingsStore(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) =
         edit { it[Keys.DYNAMIC_COLOR] = enabled }
-
-    suspend fun setAppLaunchDetector(kind: AppLaunchDetectorKind) =
-        edit { it[Keys.APP_LAUNCH_DETECTOR] = kind.name }
 
     suspend fun setOnboardingComplete(done: Boolean) =
         edit { it[Keys.ONBOARDING_DONE] = done }

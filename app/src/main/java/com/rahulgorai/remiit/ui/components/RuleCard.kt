@@ -2,7 +2,15 @@ package com.rahulgorai.remiit.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -11,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Apps
@@ -19,8 +28,6 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.outlined.OpenInFull
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -31,15 +38,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
-import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.model.shortSummary
+import com.rahulgorai.remiit.ui.SharedKeys
+import com.rahulgorai.remiit.ui.sharedContainer
+import com.rahulgorai.remiit.ui.sharedTitle
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.ui.theme.RemiitMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -59,6 +70,13 @@ fun iconFor(mode: DeliveryMode): ImageVector = when (mode) {
     DeliveryMode.ALARM -> Icons.Filled.Alarm
 }
 
+/**
+ * One rule in the list.
+ *
+ * The card is also the start of the editor's opening transition — it carries a
+ * [sharedContainer] keyed on the rule id, so tapping it grows this exact
+ * surface into the builder rather than pushing a new screen over the top.
+ */
 @Composable
 fun RuleCard(
     rule: ReminderRule,
@@ -67,37 +85,49 @@ fun RuleCard(
     onToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val shape = MaterialTheme.shapes.extraLarge
+
     // Disabled rules recede rather than disappear, so the list still reads as
-    // "these are my rules" with the inactive ones visibly dimmed.
+    // "these are my rules" with the inactive ones visibly dimmed. Animated so
+    // the toggle has a settling motion instead of a hard cut.
     val containerColor by animateColorAsState(
         targetValue = if (rule.isEnabled) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
             MaterialTheme.colorScheme.surfaceContainerLow
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLowest
         },
         animationSpec = RemiitMotion.effects(),
         label = "card-color",
     )
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (rule.isEnabled) 1f else 0.55f,
+        animationSpec = RemiitMotion.effects(),
+        label = "card-alpha",
+    )
 
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        modifier = modifier
+            .fillMaxWidth()
+            .sharedContainer(SharedKeys.ruleContainer(rule.id), shape),
+        shape = shape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = RemiitBorders.container(),
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .alpha(contentAlpha)
+                ) {
                     Text(
                         text = rule.title,
                         style = MaterialTheme.typography.titleLarge,
-                        color = if (rule.isEnabled) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.sharedTitle(SharedKeys.ruleTitle(rule.id)),
                     )
                     if (rule.body.isNotBlank()) {
                         Spacer(Modifier.height(2.dp))
@@ -110,37 +140,41 @@ fun RuleCard(
                         )
                     }
                 }
+                Spacer(Modifier.size(12.dp))
                 Switch(checked = rule.isEnabled, onCheckedChange = onToggle)
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.alpha(contentAlpha),
             ) {
                 rule.triggers.forEach { trigger ->
-                    TriggerChip(trigger)
+                    MetaChip(
+                        icon = iconFor(trigger.kind),
+                        text = trigger.shortSummary(),
+                    )
                 }
-                AssistChip(
-                    onClick = onClick,
-                    label = { Text(rule.delivery.mode.label()) },
-                    leadingIcon = {
-                        Icon(
-                            iconFor(rule.delivery.mode),
-                            contentDescription = null,
-                            Modifier.size(AssistChipDefaults.IconSize),
-                        )
-                    },
+                MetaChip(
+                    icon = iconFor(rule.delivery.mode),
+                    text = rule.delivery.mode.label(),
+                    accent = true,
                 )
             }
 
-            AnimatedVisibility(visible = rule.isEnabled && nextFire != null) {
+            AnimatedVisibility(
+                visible = rule.isEnabled && nextFire != null,
+                enter = fadeIn(RemiitMotion.effects()) + expandVertically(RemiitMotion.spatial()),
+                exit = fadeOut(RemiitMotion.fastEffects()) +
+                    shrinkVertically(RemiitMotion.fastSpatial()),
+            ) {
                 Column {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
                     Text(
-                        text = nextFire?.let { "Next: ${formatNextFire(it)}" }.orEmpty(),
-                        style = MaterialTheme.typography.labelMedium,
+                        text = nextFire?.let { "Next · ${formatNextFire(it)}" }.orEmpty(),
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
@@ -149,20 +183,54 @@ fun RuleCard(
     }
 }
 
+/**
+ * A read-only fact about a rule.
+ *
+ * Not an [androidx.compose.material3.AssistChip]: these are labels, not
+ * controls, and a disabled chip that looks pressable but is not is worse than
+ * either. Bordered so it still reads as a distinct object.
+ */
 @Composable
-private fun TriggerChip(trigger: Trigger) {
-    AssistChip(
-        onClick = {},
-        enabled = false,
-        label = { Text(trigger.shortSummary(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingIcon = {
-            Icon(
-                iconFor(trigger.kind),
-                contentDescription = null,
-                Modifier.size(AssistChipDefaults.IconSize),
+fun MetaChip(
+    icon: ImageVector,
+    text: String,
+    modifier: Modifier = Modifier,
+    accent: Boolean = false,
+) {
+    val contentColor = if (accent) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Row(
+        modifier = modifier
+            .background(
+                color = if (accent) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                shape = CircleShape,
             )
-        },
-    )
+            .border(RemiitBorders.container(), CircleShape)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = contentColor,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 fun DeliveryMode.label(): String = when (this) {

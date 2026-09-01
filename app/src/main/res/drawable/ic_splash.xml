@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Splash mark. Same orbit-and-bead geometry as the launcher icon, so the icon
+  the user tapped is still on screen while the app starts.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -11,11 +15,12 @@
       in dark, and this tone is the one that holds contrast against both.
     -->
     <path
-        android:fillColor="#FF4E8CC0"
-        android:fillType="evenOdd"
-        android:pathData="M54,25 C40.7,25 31,35.4 31,49.5 V56 C31,62.5 28.2,66.6 24.5,70 H83.5 C79.8,66.6 77,62.5 77,56 V49.5 C77,35.4 67.3,25 54,25 Z M44.121,48.879 L48.5,53.257 L63.879,37.879 L68.121,42.121 L48.5,61.743 L39.879,53.121 Z" />
+        android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+        android:strokeColor="#FF4E8CC0"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
 
     <path
         android:fillColor="#FF4E8CC0"
-        android:pathData="M48,22 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z M25.5,68.5 H82.5 A4.5,4.5 0 0,1 82.5,77.5 H25.5 A4.5,4.5 0 0,1 25.5,68.5 Z M44.6,80.5 H63.4 C63.4,85.7 59.2,89.5 54,89.5 C48.8,89.5 44.6,85.7 44.6,80.5 Z" />
+        android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
 </vector>

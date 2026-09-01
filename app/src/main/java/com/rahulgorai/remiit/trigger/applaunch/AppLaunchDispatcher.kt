@@ -1,8 +1,6 @@
 package com.rahulgorai.remiit.trigger.applaunch
 
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
+import android.util.Log
 import com.rahulgorai.remiit.data.model.ReminderRule
 import com.rahulgorai.remiit.data.model.shortSummary
 import com.rahulgorai.remiit.engine.TriggerEvent
@@ -12,14 +10,14 @@ import kotlinx.coroutines.launch
 import java.time.Clock
 
 /**
- * Shared matching logic for both app-launch detectors.
+ * Decides which foreground changes actually count as an app launch.
  *
- * The two detectors differ only in how they notice a foreground change; what to
- * do about it is identical, so it lives here rather than being duplicated (and
- * drifting) between an AccessibilityService and a polling loop.
+ * Fed by [UsageStatsAppLaunchPoller], which reports activity resumes. Kept
+ * separate from the poller so the "is this actually a launch?" decision is
+ * testable without a live UsageStatsManager.
  */
 class AppLaunchDispatcher(
-    private val context: Context,
+    private val packages: PackageIntrospector,
     private val sink: TriggerSink,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.systemDefaultZone(),
@@ -27,26 +25,39 @@ class AppLaunchDispatcher(
     @Volatile
     private var rules: List<ReminderRule> = emptyList()
 
+    /** The app we currently believe the user is in. */
     @Volatile
     private var lastPackage: String? = null
 
     @Volatile
-    private var lastAtMillis: Long = 0L
+    private var lastFiredPackage: String? = null
+
+    /** When [lastFiredPackage] fired, so a quick bounce cannot re-fire it. */
+    @Volatile
+    private var lastFiredAtMillis: Long = 0L
 
     /**
-     * Packages never treated as an app launch, whatever the rule says.
+     * Packages whose windows are ignored entirely — they neither fire a trigger
+     * nor count as leaving the app underneath.
      *
-     * Without this, "remind me on any app launch" fires every time you touch
-     * the home button or pull down the shade, which makes the feature unusable
-     * rather than merely noisy. Resolved lazily because the default launcher
-     * can change.
+     * Remiit's own package is the important entry, and is what breaks the
+     * re-fire loop. A banner or alarm reminder puts Remiit's overlay in front of
+     * whatever you were using; treating that as an app switch meant dismissing
+     * the reminder put YouTube back in the foreground, which looked like a fresh
+     * launch, which fired the same reminder again — indefinitely.
      */
-    private val implicitExcludes: Set<String> by lazy {
-        buildSet {
-            add(context.packageName)
-            add("com.android.systemui")
-            defaultLauncherPackage()?.let(::add)
-        }
+    private val transientPackages: Set<String> by lazy {
+        setOf(packages.ownPackage) + SYSTEM_OVERLAY_PACKAGES
+    }
+
+    /**
+     * Packages that update state but never fire triggers.
+     *
+     * The home screen: going home should not remind you of anything, but it
+     * genuinely is leaving the app, so coming back afterwards is a new launch.
+     */
+    private val excludedPackages: Set<String> by lazy {
+        buildSet { packages.launcherPackage()?.let(::add) }
     }
 
     fun updateRules(rules: List<ReminderRule>) {
@@ -57,25 +68,40 @@ class AppLaunchDispatcher(
     fun hasWork(): Boolean = rules.isNotEmpty()
 
     /**
-     * Called by whichever detector is active. Safe to call repeatedly for the
-     * same launch: both detectors emit duplicates (accessibility fires per
-     * window, usage-stats polling re-reads the same event), so repeats of the
-     * same package inside [DEDUP_WINDOW_MILLIS] are dropped.
+     * Called by the poller for each activity resume it sees.
      */
     fun onAppForegrounded(packageName: String) {
-        if (packageName.isBlank() || packageName in implicitExcludes) return
+        // Deliberately returns *before* touching lastPackage: recording a
+        // transient package would make the next event for the app underneath
+        // look like a switch, which is the bug this guards against.
+        if (packageName.isBlank() || packageName in transientPackages) return
+
+        val changed = packageName != lastPackage
+        lastPackage = packageName
+        if (!changed) return
+
+        // The launcher: we have recorded that the user left the previous app,
+        // but going home is not itself something to remind anyone about.
+        if (packageName in excludedPackages) return
 
         val now = clock.millis()
-        if (packageName == lastPackage && now - lastAtMillis < DEDUP_WINDOW_MILLIS) return
-        lastPackage = packageName
-        lastAtMillis = now
+        if (packageName == lastFiredPackage && now - lastFiredAtMillis < RELAUNCH_GUARD_MILLIS) {
+            // A task switch the OS reported twice, or a quick glance at another
+            // app and straight back. Not a second launch.
+            Log.d(TAG, "Suppressed re-launch of $packageName inside the guard window")
+            return
+        }
 
         val matches = rules.flatMap { rule ->
             rule.appLaunchTriggers
                 .filter { it.matches(packageName) }
                 .map { rule to it }
         }
+        Log.d(TAG, "Foreground: $packageName — ${matches.size} match(es)")
         if (matches.isEmpty()) return
+
+        lastFiredPackage = packageName
+        lastFiredAtMillis = now
 
         val firedAt = clock.instant()
         scope.launch {
@@ -84,7 +110,7 @@ class AppLaunchDispatcher(
                     TriggerEvent(
                         ruleId = rule.id,
                         triggerId = trigger.id,
-                        summary = appLabel(packageName)?.let { "$it opened" }
+                        summary = packages.label(packageName)?.let { "$it opened" }
                             ?: trigger.shortSummary(),
                         firedAt = firedAt,
                     )
@@ -93,21 +119,24 @@ class AppLaunchDispatcher(
         }
     }
 
-    private fun defaultLauncherPackage(): String? {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
-        return runCatching {
-            context.packageManager
-                .resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                ?.activityInfo?.packageName
-        }.getOrNull()
-    }
-
-    private fun appLabel(packageName: String): String? = runCatching {
-        val pm = context.packageManager
-        pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-    }.getOrNull()
-
     private companion object {
-        const val DEDUP_WINDOW_MILLIS = 2_000L
+        const val TAG = "AppLaunchDispatcher"
+
+        /**
+         * Chrome that draws on top of the current app. The notification shade is
+         * the classic case: pulling it down and pushing it back up is not
+         * leaving and re-entering the app underneath.
+         */
+        val SYSTEM_OVERLAY_PACKAGES = setOf(
+            "com.android.systemui",
+            "com.samsung.android.app.cocktailbarservice",
+        )
+
+        /**
+         * A second launch of the same app this soon after the last one is a
+         * bounce, not a new launch. Short enough that genuinely reopening an app
+         * after glancing at another one still fires.
+         */
+        const val RELAUNCH_GUARD_MILLIS = 5_000L
     }
 }

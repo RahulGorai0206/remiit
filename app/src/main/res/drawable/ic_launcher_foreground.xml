@@ -1,12 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Adaptive-icon foreground: a bell with a check mark cut out of it.
-  The check is negative space, not a second colour — so the mark keeps its
-  meaning when the launcher flattens it to a silhouette for a themed icon.
+  Adaptive-icon foreground: an open orbit with a bead resting in its gap.
 
-  Everything is authored at natural size and then scaled 0.88 about the canvas
-  centre, which lands the artwork inside the 72dp safe zone (18..90) that every
-  launcher mask is guaranteed to leave visible.
+  The mark is the app's idea in one glyph. The ring is the condition being
+  watched — a loop that runs continuously — and the bead is the moment it
+  fires: the point where the loop's end meets its beginning. It is also the
+  app's motion language drawn still, every animation being a path with a
+  connected start and end.
+
+  Deliberately not a bell or a clock. Those are what every reminder app draws,
+  and at 48dp they are indistinguishable from each other.
+
+  Geometry: centre (54,54), orbit radius 27 with a 12-wide round-capped stroke,
+  gap of 84° centred on the upper-right diagonal, bead radius 9 seated at the
+  gap's midpoint. Artwork spans 18..90, which is the 72dp safe zone every
+  launcher mask is guaranteed to leave visible — so no scale group is needed.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -15,50 +23,43 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:scaleX="0.88"
-        android:scaleY="0.88">
+    <!--
+      The orbit. Drawn as a stroke rather than a filled ring so the round caps
+      come for free — they are what make the two ends read as terminals of one
+      path instead of a circle that happens to be broken.
+    -->
+    <path
+        android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+        android:strokeWidth="12"
+        android:strokeLineCap="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="27"
+                android:startY="81"
+                android:endX="81"
+                android:endY="27">
+                <item android:color="#FFD3E5F8" android:offset="0.0" />
+                <item android:color="#FFFFFFFF" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-        <!--
-          Body + check in ONE path with evenOdd fill: where the two subpaths
-          overlap, evenOdd punches the hole. Drawing the check as a separate
-          light-coloured path instead would disappear in monochrome.
-        -->
-        <path android:fillType="evenOdd"
-            android:pathData="M54,25 C40.7,25 31,35.4 31,49.5 V56 C31,62.5 28.2,66.6 24.5,70 H83.5 C79.8,66.6 77,62.5 77,56 V49.5 C77,35.4 67.3,25 54,25 Z M44.121,48.879 L48.5,53.257 L63.879,37.879 L68.121,42.121 L48.5,61.743 L39.879,53.121 Z">
-            <aapt:attr name="android:fillColor">
-                <gradient
-                    android:type="linear"
-                    android:startX="54"
-                    android:startY="22"
-                    android:endX="54"
-                    android:endY="80">
-                    <item android:color="#FFFFFFFF" android:offset="0.0" />
-                    <item android:color="#FFE4EFFA" android:offset="1.0" />
-                </gradient>
-            </aapt:attr>
-        </path>
-
-        <!--
-          Crown, rim and clapper. A separate path element so its overlap with
-          the body is a plain union — fillType is per-path, and folding these
-          into the evenOdd path above would punch holes where they meet.
-        -->
-        <path
-            android:pathData="M48,22 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 Z M25.5,68.5 H82.5 A4.5,4.5 0 0,1 82.5,77.5 H25.5 A4.5,4.5 0 0,1 25.5,68.5 Z M44.6,80.5 H63.4 C63.4,85.7 59.2,89.5 54,89.5 C48.8,89.5 44.6,85.7 44.6,80.5 Z">
-            <aapt:attr name="android:fillColor">
-                <gradient
-                    android:type="linear"
-                    android:startX="54"
-                    android:startY="16"
-                    android:endX="54"
-                    android:endY="90">
-                    <item android:color="#FFFFFFFF" android:offset="0.0" />
-                    <item android:color="#FFDDEAF8" android:offset="1.0" />
-                </gradient>
-            </aapt:attr>
-        </path>
-    </group>
+    <!--
+      The bead. Sits at the orbit's radius but is wider than its stroke, so it
+      carries more weight than the ring and the eye lands on it first.
+    -->
+    <path android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="73.09"
+                android:startY="25.91"
+                android:endX="73.09"
+                android:endY="43.91">
+                <item android:color="#FFFFFFFF" android:offset="0.0" />
+                <item android:color="#FFDCEAF9" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

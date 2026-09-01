@@ -11,9 +11,6 @@
     <string name="channel_monitor_name">Rule monitoring</string>
     <string name="channel_monitor_description">Ongoing notice shown while Wi-Fi or app-launch rules are being watched</string>
 
-    <!-- Accessibility service -->
-    <string name="accessibility_service_label">Remiit app-launch detection</string>
-    <string name="accessibility_service_description">Lets Remiit notice when you open an app so app-launch reminder rules can fire. Remiit only reads which app came to the foreground — never screen contents — and nothing leaves your device.</string>
 
     <!-- Reminder actions -->
     <string name="action_complete">Complete</string>

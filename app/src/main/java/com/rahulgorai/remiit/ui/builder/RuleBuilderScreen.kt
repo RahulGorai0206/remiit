@@ -30,10 +30,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -42,6 +44,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +54,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,7 +66,17 @@ import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.model.shortSummary
+import com.rahulgorai.remiit.ui.SharedKeys
+import com.rahulgorai.remiit.ui.components.BorderedIconButton
+import com.rahulgorai.remiit.ui.components.ConfirmedButton
+import com.rahulgorai.remiit.ui.components.PrimaryButton
+import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.iconFor
+import com.rahulgorai.remiit.ui.sharedContainer
+import com.rahulgorai.remiit.ui.sharedTitle
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
+import com.rahulgorai.remiit.ui.theme.RemiitMotion
+import androidx.compose.foundation.border
 import com.rahulgorai.remiit.ui.components.label
 import org.koin.androidx.compose.koinViewModel
 
@@ -81,27 +96,69 @@ fun RuleBuilderScreen(
 ) {
     LaunchedEffect(ruleId) { viewModel.load(ruleId) }
 
+    val context = LocalContext.current
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     var sheet by remember { mutableStateOf<SheetTarget?>(null) }
     var showAdvanced by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // The editor is the far end of the card's (or the FAB's) journey. Wrapping
+    // the whole screen in the matching shared key is what makes the surface the
+    // user pressed grow into this one and shrink back on the way out, rather
+    // than a new screen sliding over the top of it.
+    val containerKey = ruleId?.let(SharedKeys::ruleContainer) ?: SharedKeys.NEW_RULE
+
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            // Rounded rather than square: the overlay clip only applies while
+            // the surface is travelling, so the card unfurls with its corners
+            // intact and squares off exactly as it lands.
+            .sharedContainer(containerKey, MaterialTheme.shapes.extraLarge),
+        color = MaterialTheme.colorScheme.background,
+    ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (ruleId == null) "New rule" else "Edit rule") },
-                navigationIcon = {
-                    IconButton(onClick = onDone) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                title = {
+                    // For an existing rule the heading *is* the rule's title, so
+                    // the words themselves fly up from the card rather than the
+                    // card's title fading out while a generic "Edit rule" fades
+                    // in somewhere else.
+                    if (ruleId != null) {
+                        Text(
+                            text = draft.title.ifBlank { "Edit rule" },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.sharedTitle(SharedKeys.ruleTitle(ruleId)),
+                        )
+                    } else {
+                        Text("New rule")
                     }
+                },
+                navigationIcon = {
+                    BorderedIconButton(
+                        icon = Icons.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        onClick = onDone,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
                 },
                 actions = {
                     if (ruleId != null) {
-                        IconButton(onClick = { viewModel.delete(onDone) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete rule")
-                        }
+                        BorderedIconButton(
+                            icon = Icons.Filled.Delete,
+                            contentDescription = "Delete rule",
+                            onClick = { viewModel.delete(onDone) },
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
     ) { padding ->
@@ -164,6 +221,7 @@ fun RuleBuilderScreen(
                             }
                         },
                         label = { Text(kind.label()) },
+                        border = RemiitBorders.interactive(),
                         leadingIcon = {
                             Icon(Icons.Filled.Add, contentDescription = null, Modifier.size(18.dp))
                         },
@@ -186,6 +244,7 @@ fun RuleBuilderScreen(
                                 shape = SegmentedButtonDefaults.itemShape(
                                     index, MatchMode.entries.size
                                 ),
+                                border = RemiitBorders.interactive(),
                                 label = {
                                     Text(if (mode == MatchMode.ANY) "Any trigger" else "All triggers")
                                 },
@@ -213,6 +272,7 @@ fun RuleBuilderScreen(
                         selected = draft.delivery.mode == mode,
                         onClick = { viewModel.setDelivery(draft.delivery.copy(mode = mode)) },
                         shape = SegmentedButtonDefaults.itemShape(index, DeliveryMode.entries.size),
+                        border = RemiitBorders.interactive(),
                         icon = { Icon(iconFor(mode), contentDescription = null, Modifier.size(18.dp)) },
                         label = { Text(mode.label(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
@@ -226,6 +286,7 @@ fun RuleBuilderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 shape = MaterialTheme.shapes.large,
+                border = RemiitBorders.container(),
             ) {
                 Column(Modifier.padding(vertical = 4.dp)) {
                     SwitchRow(
@@ -276,9 +337,11 @@ fun RuleBuilderScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            TextButton(onClick = { showAdvanced = !showAdvanced }) {
-                Text(if (showAdvanced) "Hide limits" else "Limits & quiet hours")
-            }
+            SecondaryButton(
+                text = if (showAdvanced) "Hide limits" else "Limits & quiet hours",
+                onClick = { showAdvanced = !showAdvanced },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             AnimatedVisibility(visible = showAdvanced) {
                 ConstraintsSection(
@@ -290,20 +353,19 @@ fun RuleBuilderScreen(
             Spacer(Modifier.height(24.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilledTonalButton(
+                ConfirmedButton(
+                    text = "Preview",
+                    icon = Icons.Filled.PlayArrow,
                     onClick = viewModel::preview,
                     enabled = draft.isValid,
                     modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
-                    Text("Preview")
-                }
-                androidx.compose.material3.Button(
+                )
+                PrimaryButton(
+                    text = "Save",
                     onClick = { viewModel.save(onDone) },
                     enabled = draft.isValid,
                     modifier = Modifier.weight(1f),
-                ) { Text("Save") }
+                )
             }
 
             if (!draft.isValid) {
@@ -318,6 +380,7 @@ fun RuleBuilderScreen(
 
             Spacer(Modifier.height(48.dp))
         }
+    }
     }
 
     sheet?.let { target ->
@@ -336,16 +399,14 @@ fun RuleBuilderScreen(
                     onConfirm = confirm,
                 )
                 is SheetTarget.Wifi -> {
-                    val known by viewModel.let { vm ->
-                        // Known SSIDs come from settings; collected here so the
-                        // sheet has them without the editor knowing about DI.
-                        remember { vm }
-                        rememberKnownSsids()
-                    }
+                    val known by rememberKnownSsids()
+                    val scan by viewModel.wifiScan.collectAsStateWithLifecycle()
                     WifiTriggerEditor(
                         initial = target.existing,
                         knownSsids = known,
+                        scan = scan,
                         newId = viewModel::newTriggerId,
+                        onScan = { viewModel.scanNearbyWifi(context) },
                         onConfirm = confirm,
                     )
                 }
@@ -382,16 +443,29 @@ private fun SectionHeader(text: String) {
 
 @Composable
 private fun TriggerRow(trigger: Trigger, onEdit: () -> Unit, onRemove: () -> Unit) {
+    val shape = MaterialTheme.shapes.medium
     ListItem(
         headlineContent = { Text(trigger.shortSummary()) },
         supportingContent = { Text(trigger.kind.label()) },
         leadingContent = { Icon(iconFor(trigger.kind), contentDescription = null) },
         trailingContent = {
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Filled.Close, contentDescription = "Remove trigger")
-            }
+            BorderedIconButton(
+                icon = Icons.Filled.Close,
+                contentDescription = "Remove trigger",
+                onClick = onRemove,
+            )
         },
-        modifier = Modifier.clickable(onClick = onEdit),
+        colors = ListItemDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp)
+            // Each trigger is its own object in the rule, so it gets its own
+            // edge rather than being a row in an undifferentiated stack.
+            .border(RemiitBorders.container(), shape)
+            .clip(shape)
+            .clickable(onClick = onEdit),
     )
 }
 
@@ -433,6 +507,7 @@ private fun ConstraintsSection(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         shape = MaterialTheme.shapes.large,
+        border = RemiitBorders.container(),
     ) {
         Column(Modifier.padding(vertical = 8.dp)) {
             SliderRow(
@@ -518,6 +593,10 @@ private fun ConstraintsSection(
                             )
                         },
                         label = { Text(label) },
+                        // A selected FilterChip drops its border by default,
+                        // which makes the selected days read as a different kind
+                        // of object from the unselected ones.
+                        border = RemiitBorders.interactive(),
                     )
                 }
             }

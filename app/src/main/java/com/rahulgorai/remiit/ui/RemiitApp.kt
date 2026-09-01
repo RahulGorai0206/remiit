@@ -1,28 +1,38 @@
 package com.rahulgorai.remiit.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -34,6 +44,7 @@ import com.rahulgorai.remiit.ui.history.HistoryScreen
 import com.rahulgorai.remiit.ui.home.HomeScreen
 import com.rahulgorai.remiit.ui.permissions.PermissionsScreen
 import com.rahulgorai.remiit.ui.settings.SettingsScreen
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 
 private data class TopLevelTab(
     val route: String,
@@ -43,8 +54,8 @@ private data class TopLevelTab(
 
 private val tabs = listOf(
     TopLevelTab(Routes.HOME, "Rules", Icons.Outlined.Alarm),
-    TopLevelTab(Routes.HISTORY, "History", Icons.Filled.History),
-    TopLevelTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
+    TopLevelTab(Routes.HISTORY, "History", Icons.Outlined.History),
+    TopLevelTab(Routes.SETTINGS, "Settings", Icons.Outlined.Tune),
 )
 
 @Composable
@@ -58,82 +69,125 @@ fun RemiitApp() {
     val showBottomBar = currentRoute in tabs.map { it.route }
 
     Surface(color = MaterialTheme.colorScheme.background) {
-        Scaffold(
-            bottomBar = {
-                if (showBottomBar) {
-                    NavigationBar {
-                        tabs.forEach { tab ->
-                            NavigationBarItem(
-                                selected = currentRoute == tab.route,
-                                onClick = {
-                                    if (currentRoute != tab.route) {
-                                        navController.navigate(tab.route) {
-                                            // Single instance per tab, and pop back
-                                            // to the start so the back button leaves
-                                            // the app rather than walking the tabs.
-                                            popUpTo(Routes.HOME) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
-                                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                                label = { Text(tab.label) },
+        // Wraps the whole graph: a shared element can only travel between two
+        // destinations that sit inside the same SharedTransitionLayout, so this
+        // has to be outside the NavHost rather than inside any one screen.
+        SharedTransitionLayout {
+            CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                Scaffold(
+                    bottomBar = {
+                        // Animated rather than conditionally composed, so leaving a
+                        // top-level screen slides the bar out instead of the content
+                        // jumping down by its height.
+                        AnimatedVisibility(
+                            visible = showBottomBar,
+                            enter = slideInVertically { it } + fadeIn(),
+                            exit = slideOutVertically { it } + fadeOut(),
+                        ) {
+                            RemiitNavigationBar(
+                                currentRoute = currentRoute,
+                                onSelect = { route -> navController.switchTab(route, currentRoute) },
                             )
                         }
                     }
+                ) { padding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    ) {
+                        RemiitNavHost(navController)
+                    }
                 }
-            }
-        ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                RemiitNavHost(navController)
             }
         }
     }
 }
 
 @Composable
-private fun RemiitNavHost(navController: androidx.navigation.NavHostController) {
+private fun RemiitNavigationBar(currentRoute: String?, onSelect: (String) -> Unit) {
+    Box {
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+            tabs.forEach { tab ->
+                val selected = currentRoute == tab.route
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { onSelect(tab.route) },
+                    icon = { Icon(tab.icon, contentDescription = tab.label) },
+                    label = { Text(tab.label) },
+                    colors = NavigationBarItemDefaults.colors(
+                        // A filled pill behind the selected icon, so the current
+                        // tab is legible without relying on the icon's tint.
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
+            }
+        }
+        // The bar is a distinct surface from the content above it and says so,
+        // rather than relying on a one-step tonal difference.
+        HorizontalDivider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(RemiitBorders.CONTAINER_WIDTH),
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
+    }
+}
+
+/** Single instance per tab, with back leaving the app rather than walking the tabs. */
+private fun NavHostController.switchTab(route: String, currentRoute: String?) {
+    if (route == currentRoute) return
+    navigate(route) {
+        popUpTo(Routes.HOME) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+@Composable
+private fun RemiitNavHost(navController: NavHostController) {
     NavHost(
         navController = navController,
         startDestination = Routes.HOME,
-        // Horizontal slide paired with a fade. Tween rather than the theme's
-        // spring here because a NavHost transition has to have a bounded
-        // duration — a spring can overshoot past the point the destination is
-        // considered settled.
-        enterTransition = {
-            slideInHorizontally(tween(320)) { it / 6 } + fadeIn(tween(240))
-        },
-        exitTransition = {
-            slideOutHorizontally(tween(320)) { -it / 6 } + fadeOut(tween(180))
-        },
-        popEnterTransition = {
-            slideInHorizontally(tween(320)) { -it / 6 } + fadeIn(tween(240))
-        },
-        popExitTransition = {
-            slideOutHorizontally(tween(320)) { it / 6 } + fadeOut(tween(180))
-        },
+        // Fade-through with a hair of scale, and nothing sliding.
+        //
+        // The old horizontal slide competed with the shared elements: the card
+        // travelling into place was moving one way while the screen behind it
+        // moved another, and the eye could not decide which to follow. Keeping
+        // the backdrop still lets the connected element carry the whole
+        // transition. Tween rather than a spring because a NavHost transition
+        // needs a bounded duration to settle.
+        enterTransition = { fadeIn(tween(220, delayMillis = 60)) + scaleIn(tween(320), 0.97f) },
+        exitTransition = { fadeOut(tween(140)) + scaleOut(tween(320), 1.01f) },
+        popEnterTransition = { fadeIn(tween(220, delayMillis = 60)) + scaleIn(tween(320), 1.01f) },
+        popExitTransition = { fadeOut(tween(140)) + scaleOut(tween(320), 0.97f) },
     ) {
         composable(Routes.HOME) {
-            HomeScreen(
-                onAddRule = { navController.navigate(Routes.builder()) },
-                onEditRule = { ruleId -> navController.navigate(Routes.builder(ruleId)) },
-                onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
-            )
+            WithNavAnimation {
+                HomeScreen(
+                    onAddRule = { navController.navigate(Routes.builder()) },
+                    onEditRule = { ruleId -> navController.navigate(Routes.builder(ruleId)) },
+                    onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) },
+                )
+            }
         }
 
-        composable(Routes.HISTORY) { HistoryScreen() }
+        composable(Routes.HISTORY) { WithNavAnimation { HistoryScreen() } }
 
         composable(Routes.SETTINGS) {
-            SettingsScreen(onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) })
+            WithNavAnimation {
+                SettingsScreen(onOpenPermissions = { navController.navigate(Routes.PERMISSIONS) })
+            }
         }
 
         composable(Routes.PERMISSIONS) {
-            PermissionsScreen(onBack = { navController.popBackStack() })
+            WithNavAnimation {
+                PermissionsScreen(onBack = { navController.popBackStack() })
+            }
         }
 
         composable(
@@ -146,10 +200,26 @@ private fun RemiitNavHost(navController: androidx.navigation.NavHostController) 
                 }
             ),
         ) { entry ->
-            RuleBuilderScreen(
-                ruleId = entry.arguments?.getString(Routes.BUILDER_ARG_RULE_ID),
-                onDone = { navController.popBackStack() },
-            )
+            WithNavAnimation {
+                RuleBuilderScreen(
+                    ruleId = entry.arguments?.getString(Routes.BUILDER_ARG_RULE_ID),
+                    onDone = { navController.popBackStack() },
+                )
+            }
         }
     }
+}
+
+/**
+ * Publishes the destination's own animation scope.
+ *
+ * Every `composable` block runs inside an [androidx.compose.animation.AnimatedContentScope];
+ * a shared element needs it to know whether it is arriving or leaving. Handing
+ * it down through a CompositionLocal keeps it out of every screen's signature.
+ */
+@Composable
+private fun androidx.compose.animation.AnimatedContentScope.WithNavAnimation(
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(LocalNavAnimatedScope provides this, content = content)
 }

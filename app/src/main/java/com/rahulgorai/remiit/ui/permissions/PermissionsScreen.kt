@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.runtime.DisposableEffect
+import com.rahulgorai.remiit.ui.components.BorderedIconButton
+import com.rahulgorai.remiit.ui.components.SecondaryButton
+import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.util.Permissions
 import com.rahulgorai.remiit.util.openSettings
 
@@ -151,12 +155,11 @@ fun PermissionsScreen(onBack: () -> Unit) {
                 onFix = { context.openSettings(Permissions.locationSettings()) },
             ),
             PermissionRow(
-                title = "App-launch detection",
-                whyItMatters = "Needed for app-launch rules. Either the accessibility " +
-                    "service or usage access, whichever you picked in Settings.",
-                granted = Permissions.hasAccessibilityService(context) ||
-                    Permissions.hasUsageAccess(context),
-                onFix = { context.openSettings(Permissions.accessibilitySettings()) },
+                title = "Usage access",
+                whyItMatters = "The only way Android lets an app notice another app " +
+                    "opening. Without it, app-launch rules never fire.",
+                granted = Permissions.hasUsageAccess(context),
+                onFix = { context.openSettings(Permissions.usageAccessSettings()) },
             ),
             PermissionRow(
                 title = "Unrestricted battery",
@@ -169,14 +172,21 @@ fun PermissionsScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Permissions") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
+                    BorderedIconButton(
+                        icon = Icons.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        onClick = onBack,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
     ) { padding ->
@@ -206,9 +216,10 @@ fun PermissionsScreen(onBack: () -> Unit) {
                             MaterialTheme.colorScheme.errorContainer
                         }
                     ),
+                    border = if (row.granted) RemiitBorders.container() else RemiitBorders.error(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(18.dp)) {
                         androidx.compose.foundation.layout.Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -234,7 +245,12 @@ fun PermissionsScreen(onBack: () -> Unit) {
                             else MaterialTheme.colorScheme.onErrorContainer,
                         )
                         if (!row.granted) {
-                            TextButton(onClick = row.onFix) { Text("Grant") }
+                            Spacer(Modifier.height(14.dp))
+                            SecondaryButton(
+                                text = "Grant",
+                                onClick = row.onFix,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
                 }
