@@ -9,7 +9,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,10 +40,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.rahulgorai.remiit.ui.SharedKeys
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.RuleCard
-import com.rahulgorai.remiit.ui.sharedContainer
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import org.koin.androidx.compose.koinViewModel
 
@@ -52,7 +49,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun HomeScreen(
     onAddRule: () -> Unit,
-    onEditRule: (String) -> Unit,
+    onEditRule: (ruleId: String, title: String) -> Unit,
     onOpenPermissions: () -> Unit,
     viewModel: HomeViewModel = koinViewModel(),
 ) {
@@ -66,12 +63,6 @@ fun HomeScreen(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
-        // Zero, not the default. This Scaffold is nested inside RemiitApp's,
-        // which has already applied the system-bar insets and the bottom bar's
-        // height; consuming them again inserts a second copy of that padding
-        // and leaves a dead strip above the gesture pill. The top app bar still
-        // handles the status bar itself, through its own windowInsets.
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             LargeTopAppBar(
                 title = { Text("Rules") },
@@ -91,17 +82,12 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            // The button is the editor's opening frame: it carries the same
-            // shared key the empty builder does, so pressing it grows this
-            // surface into the new-rule screen and back returns it here.
             ExtendedFloatingActionButton(
                 onClick = onAddRule,
                 shape = fabShape,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .border(RemiitBorders.interactive(), fabShape)
-                    .sharedContainer(SharedKeys.NEW_RULE, fabShape),
+                modifier = Modifier.border(RemiitBorders.interactive(), fabShape),
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.size(10.dp))
@@ -129,8 +115,9 @@ fun HomeScreen(
                         start = 16.dp,
                         end = 16.dp,
                         top = 4.dp,
-                        // Clear the FAB and the bottom bar.
-                        bottom = 120.dp,
+                        // Clears the FAB. The bottom bar is already accounted
+                        // for by the inset this screen is laid out inside.
+                        bottom = 96.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -138,7 +125,7 @@ fun HomeScreen(
                         RuleCard(
                             rule = state.rule,
                             nextFire = state.nextFire,
-                            onClick = { onEditRule(state.rule.id) },
+                            onClick = { onEditRule(state.rule.id, state.rule.title) },
                             onToggle = { enabled -> viewModel.setEnabled(state.rule, enabled) },
                             // animateItem gives reorder and removal the spring
                             // motion the rest of the app uses.

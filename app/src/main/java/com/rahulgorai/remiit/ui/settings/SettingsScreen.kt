@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -80,12 +79,6 @@ fun SettingsScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        // Zero, not the default. This Scaffold is nested inside RemiitApp's,
-        // which has already applied the system-bar insets and the bottom bar's
-        // height; consuming them again inserts a second copy of that padding
-        // and leaves a dead strip above the gesture pill. The top app bar still
-        // handles the status bar itself, through its own windowInsets.
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },

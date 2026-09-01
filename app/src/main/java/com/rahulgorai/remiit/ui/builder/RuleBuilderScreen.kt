@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -67,15 +66,12 @@ import com.rahulgorai.remiit.data.model.QuietHours
 import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
-import com.rahulgorai.remiit.ui.SharedKeys
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.ConfirmedButton
 import com.rahulgorai.remiit.ui.components.PrimaryButton
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.iconFor
 import com.rahulgorai.remiit.ui.components.triggerDisplay
-import com.rahulgorai.remiit.ui.sharedContainer
-import com.rahulgorai.remiit.ui.sharedTitle
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.ui.theme.RemiitMotion
 import com.rahulgorai.remiit.ui.components.label
@@ -92,6 +88,8 @@ private sealed interface SheetTarget {
 @Composable
 fun RuleBuilderScreen(
     ruleId: String?,
+    /** The rule's name, carried by the route so the heading is right immediately. */
+    initialTitle: String?,
     onDone: () -> Unit,
     viewModel: RuleBuilderViewModel = koinViewModel(),
 ) {
@@ -103,46 +101,34 @@ fun RuleBuilderScreen(
     var showAdvanced by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // The editor is the far end of the card's (or the FAB's) journey. Wrapping
-    // the whole screen in the matching shared key is what makes the surface the
-    // user pressed grow into this one and shrink back on the way out, rather
-    // than a new screen sliding over the top of it.
-    val containerKey = ruleId?.let(SharedKeys::ruleContainer) ?: SharedKeys.NEW_RULE
-
+    // An opaque backdrop, so the screen sliding in from the right never lets
+    // the screen behind it show through mid-push.
     Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            // Rounded rather than square: the overlay clip only applies while
-            // the surface is travelling, so the card unfurls with its corners
-            // intact and squares off exactly as it lands.
-            .sharedContainer(containerKey, MaterialTheme.shapes.extraLarge),
+        modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
     ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        // Zero, not the default. This Scaffold is nested inside RemiitApp's,
-        // which has already applied the system-bar insets and the bottom bar's
-        // height; consuming them again inserts a second copy of that padding
-        // and leaves a dead strip above the gesture pill. The top app bar still
-        // handles the status bar itself, through its own windowInsets.
-        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {
-                    // For an existing rule the heading *is* the rule's title, so
-                    // the words themselves fly up from the card rather than the
-                    // card's title fading out while a generic "Edit rule" fades
-                    // in somewhere else.
-                    if (ruleId != null) {
-                        Text(
-                            text = draft.title.ifBlank { "Edit rule" },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.sharedTitle(SharedKeys.ruleTitle(ruleId)),
-                        )
-                    } else {
-                        Text("New rule")
-                    }
+                    // initialTitle, not a fallback string. Loading the rule is a
+                    // database read that finishes a frame or two after this
+                    // screen first composes, and for those frames draft.title is
+                    // empty — which is why the heading used to flash "Edit rule"
+                    // before the real name appeared. The name travels with the
+                    // navigation argument instead, so the right words are on
+                    // screen from the very first frame.
+                    Text(
+                        text = when {
+                            ruleId == null -> "New rule"
+                            draft.title.isNotBlank() -> draft.title
+                            !initialTitle.isNullOrBlank() -> initialTitle
+                            else -> "Edit rule"
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
                 navigationIcon = {
                     BorderedIconButton(

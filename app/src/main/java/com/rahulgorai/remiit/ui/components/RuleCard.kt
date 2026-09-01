@@ -47,9 +47,6 @@ import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
-import com.rahulgorai.remiit.ui.SharedKeys
-import com.rahulgorai.remiit.ui.sharedContainer
-import com.rahulgorai.remiit.ui.sharedTitle
 import com.rahulgorai.remiit.ui.theme.RemiitMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -69,13 +66,7 @@ fun iconFor(mode: DeliveryMode): ImageVector = when (mode) {
     DeliveryMode.ALARM -> Icons.Filled.Alarm
 }
 
-/**
- * One rule in the list.
- *
- * The card is also the start of the editor's opening transition — it carries a
- * [sharedContainer] keyed on the rule id, so tapping it grows this exact
- * surface into the builder rather than pushing a new screen over the top.
- */
+/** One rule in the list. */
 @Composable
 fun RuleCard(
     rule: ReminderRule,
@@ -106,9 +97,7 @@ fun RuleCard(
 
     Card(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .sharedContainer(SharedKeys.ruleContainer(rule.id), shape),
+        modifier = modifier.fillMaxWidth(),
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
@@ -125,7 +114,6 @@ fun RuleCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.sharedTitle(SharedKeys.ruleTitle(rule.id)),
                     )
                     if (rule.body.isNotBlank()) {
                         Spacer(Modifier.height(2.dp))
