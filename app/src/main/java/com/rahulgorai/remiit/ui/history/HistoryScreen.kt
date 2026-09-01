@@ -2,6 +2,7 @@ package com.rahulgorai.remiit.ui.history
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,7 +30,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.data.model.ReminderOutcome
-import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import org.koin.androidx.compose.koinViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -44,6 +44,12 @@ fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        // Zero, not the default. This Scaffold is nested inside RemiitApp's,
+        // which has already applied the system-bar insets and the bottom bar's
+        // height; consuming them again inserts a second copy of that padding
+        // and leaves a dead strip above the gesture pill. The top app bar still
+        // handles the status bar itself, through its own windowInsets.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = { Text("History") },
@@ -98,7 +104,6 @@ fun HistoryScreen(viewModel: HistoryViewModel = koinViewModel()) {
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
-                    border = RemiitBorders.container(),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -147,7 +152,6 @@ private fun CompletionSummary(completed: Int, total: Int) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
-        border = RemiitBorders.container(),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp)) {

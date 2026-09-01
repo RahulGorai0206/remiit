@@ -2,6 +2,8 @@ package com.rahulgorai.remiit.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -192,6 +194,15 @@ private fun RemiitNavHost(navController: NavHostController) {
 
         composable(
             route = Routes.BUILDER_ROUTE,
+            // No transition of its own. The shared container is already
+            // animating this destination's bounds from the card (or the "new
+            // rule" button) it grew out of; layering a second fade-and-scale on
+            // top makes two motions fight over the same pixels, which is what
+            // reads as cheap. The shared element owns this transition outright.
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
             arguments = listOf(
                 navArgument(Routes.BUILDER_ARG_RULE_ID) {
                     type = NavType.StringType

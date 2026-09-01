@@ -1,9 +1,11 @@
 package com.rahulgorai.remiit.ui.builder
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -65,18 +67,17 @@ import com.rahulgorai.remiit.data.model.QuietHours
 import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
-import com.rahulgorai.remiit.data.model.shortSummary
 import com.rahulgorai.remiit.ui.SharedKeys
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.ConfirmedButton
 import com.rahulgorai.remiit.ui.components.PrimaryButton
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.iconFor
+import com.rahulgorai.remiit.ui.components.triggerDisplay
 import com.rahulgorai.remiit.ui.sharedContainer
 import com.rahulgorai.remiit.ui.sharedTitle
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.ui.theme.RemiitMotion
-import androidx.compose.foundation.border
 import com.rahulgorai.remiit.ui.components.label
 import org.koin.androidx.compose.koinViewModel
 
@@ -119,6 +120,12 @@ fun RuleBuilderScreen(
     ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        // Zero, not the default. This Scaffold is nested inside RemiitApp's,
+        // which has already applied the system-bar insets and the bottom bar's
+        // height; consuming them again inserts a second copy of that padding
+        // and leaves a dead strip above the gesture pill. The top app bar still
+        // handles the status bar itself, through its own windowInsets.
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {
@@ -286,7 +293,6 @@ fun RuleBuilderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
                 shape = MaterialTheme.shapes.large,
-                border = RemiitBorders.container(),
             ) {
                 Column(Modifier.padding(vertical = 4.dp)) {
                     SwitchRow(
@@ -444,10 +450,22 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun TriggerRow(trigger: Trigger, onEdit: () -> Unit, onRemove: () -> Unit) {
     val shape = MaterialTheme.shapes.medium
+    val display = triggerDisplay(trigger)
     ListItem(
-        headlineContent = { Text(trigger.shortSummary()) },
+        headlineContent = { Text(display.text) },
         supportingContent = { Text(trigger.kind.label()) },
-        leadingContent = { Icon(iconFor(trigger.kind), contentDescription = null) },
+        leadingContent = {
+            val appIcon = display.appIcon
+            if (appIcon != null) {
+                Image(
+                    bitmap = appIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                )
+            } else {
+                Icon(iconFor(trigger.kind), contentDescription = null)
+            }
+        },
         trailingContent = {
             BorderedIconButton(
                 icon = Icons.Filled.Close,
@@ -461,9 +479,6 @@ private fun TriggerRow(trigger: Trigger, onEdit: () -> Unit, onRemove: () -> Uni
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
-            // Each trigger is its own object in the rule, so it gets its own
-            // edge rather than being a row in an undifferentiated stack.
-            .border(RemiitBorders.container(), shape)
             .clip(shape)
             .clickable(onClick = onEdit),
     )
@@ -507,7 +522,6 @@ private fun ConstraintsSection(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
         shape = MaterialTheme.shapes.large,
-        border = RemiitBorders.container(),
     ) {
         Column(Modifier.padding(vertical = 8.dp)) {
             SliderRow(

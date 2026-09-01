@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,7 +51,9 @@ import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.WifiEvent
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.wifi.WifiNetworks
+import androidx.compose.foundation.Image
 import com.rahulgorai.remiit.ui.components.PrimaryButton
+import com.rahulgorai.remiit.ui.components.rememberAppIdentity
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.TertiaryButton
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
@@ -592,8 +595,18 @@ fun AppLaunchTriggerEditor(
             Spacer(Modifier.height(8.dp))
             LazyColumn(Modifier.heightIn(max = 320.dp)) {
                 items(items = filtered, key = { it.packageName }) { app ->
+                    val identity = rememberAppIdentity(app.packageName)
                     ListItem(
                         headlineContent = { Text(app.label) },
+                        trailingContent = {
+                            identity.icon?.let {
+                                Image(
+                                    bitmap = it,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                )
+                            }
+                        },
                         leadingContent = {
                             Checkbox(
                                 checked = app.packageName in selected,

@@ -7,8 +7,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,11 +47,9 @@ import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
-import com.rahulgorai.remiit.data.model.shortSummary
 import com.rahulgorai.remiit.ui.SharedKeys
 import com.rahulgorai.remiit.ui.sharedContainer
 import com.rahulgorai.remiit.ui.sharedTitle
-import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import com.rahulgorai.remiit.ui.theme.RemiitMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -112,7 +111,6 @@ fun RuleCard(
             .sharedContainer(SharedKeys.ruleContainer(rule.id), shape),
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = RemiitBorders.container(),
     ) {
         Column(Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,9 +150,11 @@ fun RuleCard(
                 modifier = Modifier.alpha(contentAlpha),
             ) {
                 rule.triggers.forEach { trigger ->
+                    val display = triggerDisplay(trigger)
                     MetaChip(
                         icon = iconFor(trigger.kind),
-                        text = trigger.shortSummary(),
+                        text = display.text,
+                        appIcon = display.appIcon,
                     )
                 }
                 MetaChip(
@@ -196,6 +196,7 @@ fun MetaChip(
     text: String,
     modifier: Modifier = Modifier,
     accent: Boolean = false,
+    appIcon: ImageBitmap? = null,
 ) {
     val contentColor = if (accent) {
         MaterialTheme.colorScheme.onSecondaryContainer
@@ -212,17 +213,26 @@ fun MetaChip(
                 },
                 shape = CircleShape,
             )
-            .border(RemiitBorders.container(), CircleShape)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = contentColor,
-        )
+        if (appIcon != null) {
+            // The app's own icon, unrecoloured — it is the fastest way to
+            // recognise which rule this is, and tinting it would destroy that.
+            Image(
+                bitmap = appIcon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = contentColor,
+            )
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
