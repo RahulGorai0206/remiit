@@ -13,8 +13,7 @@
 
   Geometry: centre (54,54), orbit radius 27 with a 12-wide round-capped stroke,
   gap of 84° centred on the upper-right diagonal, bead radius 9 seated at the
-  gap's midpoint. Artwork spans 18..90, which is the 72dp safe zone every
-  launcher mask is guaranteed to leave visible — so no scale group is needed.
+  gap's midpoint — then scaled down as a whole so it clears the mask edge.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -22,6 +21,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!--
+      The mask reveals the middle 72dp of this 108dp canvas, and the artwork is
+      authored to span exactly that. Scaling it about the centre pulls the mark
+      inside the rim: at 0.72 the outermost point sits ~28% of the radius clear
+      of the mask edge, which is the margin an app icon is expected to keep so
+      it does not read as cropped next to its neighbours on a home screen.
+    -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
 
     <!--
       The orbit. Drawn as a stroke rather than a filled ring so the round caps
@@ -62,4 +74,5 @@
             </gradient>
         </aapt:attr>
     </path>
+    </group>
 </vector>

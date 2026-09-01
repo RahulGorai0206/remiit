@@ -10,6 +10,16 @@
     android:viewportHeight="108">
 
     <!--
+      Matched to the launcher icon's inset: the system splash masks this to the
+      inner two-thirds of its canvas, so an unscaled mark is clipped at the rim.
+    -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+
+    <!--
       A single mid-blue rather than the launcher gradient: this sits on
       @color/splash_background, which is near-white in light mode and near-black
       in dark, and this tone is the one that holds contrast against both.
@@ -23,4 +33,5 @@
     <path
         android:fillColor="#FF4E8CC0"
         android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
+    </group>
 </vector>

@@ -14,6 +14,19 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!--
+      The mask reveals the middle 72dp of this 108dp canvas, and the artwork is
+      authored to span exactly that. Scaling it about the centre pulls the mark
+      inside the rim: at 0.72 the outermost point sits ~28% of the radius clear
+      of the mask edge, which is the margin an app icon is expected to keep so
+      it does not read as cropped next to its neighbours on a home screen.
+    -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+
     <path
         android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
         android:strokeColor="#FF000000"
@@ -23,4 +36,5 @@
     <path
         android:fillColor="#FF000000"
         android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
+    </group>
 </vector>

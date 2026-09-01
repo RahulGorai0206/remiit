@@ -3,6 +3,9 @@ package com.rahulgorai.remiit.ui
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.material3.MaterialTheme
@@ -74,11 +77,17 @@ fun Modifier.sharedContainer(
         this@sharedContainer.sharedBounds(
             sharedContentState = rememberSharedContentState(key),
             animatedVisibilityScope = animated,
-            // The container's own bounds carry the motion, so the content
-            // inside it only needs to fade — a second spatial animation here
-            // would fight the bounds transform.
-            enter = fadeIn(RemiitBoundsMotion.contentSpec()),
-            exit = fadeOut(RemiitBoundsMotion.contentSpec()),
+            // A fade-*through*, not a crossfade, and this is the whole trick.
+            //
+            // Fading both contents on the same curve leaves them sitting at
+            // half opacity together for most of the transition, so you read two
+            // complete UIs stacked on top of each other — the card's title and
+            // chips showing straight through the editor's fields. Retiming it
+            // so the outgoing content is gone before the incoming arrives means
+            // only one thing is ever legible, and the container is left to
+            // carry the movement on its own.
+            enter = fadeIn(RemiitBoundsMotion.CONTENT_IN),
+            exit = fadeOut(RemiitBoundsMotion.CONTENT_OUT),
             boundsTransform = RemiitBoundsMotion.boundsTransform(),
             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.TopStart),
             // Without this the travelling surface is drawn square-cornered in
@@ -126,7 +135,18 @@ object RemiitBoundsMotion {
         return BoundsTransform { _, _ -> spec }
     }
 
-    /** Fade used for the content inside a travelling container. */
-    @Composable
-    fun contentSpec() = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    /**
+     * Outgoing content: gone in the first third, before the container has
+     * travelled far enough for the two layouts to disagree visibly.
+     */
+    val CONTENT_OUT: FiniteAnimationSpec<Float> =
+        tween(durationMillis = 110, easing = LinearOutSlowInEasing)
+
+    /**
+     * Incoming content: held back until the container is most of the way to its
+     * destination, so it is only ever seen at close to its true size. The delay
+     * is what stops a whole screen being legible while scaled into a button.
+     */
+    val CONTENT_IN: FiniteAnimationSpec<Float> =
+        tween(durationMillis = 190, delayMillis = 170, easing = LinearOutSlowInEasing)
 }
