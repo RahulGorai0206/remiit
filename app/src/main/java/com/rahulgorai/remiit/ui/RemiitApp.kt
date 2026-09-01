@@ -94,7 +94,14 @@ fun RemiitApp() {
     val systemBottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     var barBody by remember { mutableStateOf(NavigationBarBodyHeight) }
 
-    Surface(color = MaterialTheme.colorScheme.background) {
+    // fillMaxSize, explicitly. Without a size the Surface wraps its content, and
+    // anywhere the content stops short the static @color/window_background shows
+    // through instead — which is the near-black band that appeared behind the
+    // gesture pill on screens with no bottom bar of their own.
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+    ) {
         // A Box, not a Scaffold with a bottomBar slot — and that is the whole
         // point of this layout.
         //

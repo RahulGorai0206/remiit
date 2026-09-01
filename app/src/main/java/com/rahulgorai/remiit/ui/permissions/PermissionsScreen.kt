@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -190,11 +191,21 @@ fun PermissionsScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
+            // The insets go in contentPadding, never as padding on the list.
+            // Padding the list clips it to the safe area, so it cannot draw
+            // behind the system bars and leaves a bare band there; as content
+            // padding the rows still stop clear of the bars but the list's
+            // surface runs to the edge of the screen.
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+                .consumeWindowInsets(padding),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = padding.calculateTopPadding() + 16.dp,
+                bottom = padding.calculateBottomPadding() + 16.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {

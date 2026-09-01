@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -164,7 +166,18 @@ fun RuleBuilderScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                // Only the top inset padded here. Padding the bottom too would
+                // clip the scroll container to the safe area, so the content
+                // could never pass behind the gesture bar and the strip there
+                // stayed empty. The bottom inset is added as trailing space
+                // inside the scroll instead — same effect for reachability, but
+                // the screen now runs to the edge and the pill floats over it.
+                .padding(top = padding.calculateTopPadding())
+                // Consumed so nothing further down applies these insets a second
+                // time, and imePadding before the scroll so the keyboard pushes
+                // the fields up instead of covering the one being typed into.
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
@@ -381,7 +394,8 @@ fun RuleBuilderScreen(
                 )
             }
 
-            Spacer(Modifier.height(48.dp))
+            // Clears the gesture bar the content now scrolls behind.
+            Spacer(Modifier.height(48.dp + padding.calculateBottomPadding()))
         }
     }
     }
