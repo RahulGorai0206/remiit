@@ -58,11 +58,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.MatchMode
 import com.rahulgorai.remiit.data.model.QuietHours
+import com.rahulgorai.remiit.data.model.RuleConstraints
 import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.TriggerKind
 import com.rahulgorai.remiit.data.model.kind
@@ -70,6 +72,10 @@ import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.ConfirmedButton
 import com.rahulgorai.remiit.ui.components.PrimaryButton
 import com.rahulgorai.remiit.ui.components.SecondaryButton
+import com.rahulgorai.remiit.ui.components.DayToggles
+import com.rahulgorai.remiit.ui.components.Option
+import com.rahulgorai.remiit.ui.components.OptionRow
+import com.rahulgorai.remiit.ui.components.TimeField
 import com.rahulgorai.remiit.ui.components.iconFor
 import com.rahulgorai.remiit.ui.components.triggerDisplay
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
@@ -306,24 +312,29 @@ fun RuleBuilderScreen(
                             },
                         )
                     }
-                    SliderRow(
-                        label = "Snooze: ${draft.delivery.snoozeMinutes} min",
-                        value = draft.delivery.snoozeMinutes.toFloat(),
-                        range = 0f..60f,
-                        onValueChange = {
-                            viewModel.setDelivery(draft.delivery.copy(snoozeMinutes = it.toInt()))
+                    SettingDivider()
+                    OptionRow(
+                        title = "Snooze",
+                        subtitle = "How long the Snooze button postpones it",
+                        options = SNOOZE_OPTIONS,
+                        selected = draft.delivery.snoozeMinutes,
+                        onSelect = {
+                            viewModel.setDelivery(draft.delivery.copy(snoozeMinutes = it))
                         },
+                        modifier = Modifier.padding(horizontal = 18.dp),
                     )
-                    SliderRow(
-                        label = draft.delivery.autoDismissSeconds.let {
-                            if (it == 0) "Auto-dismiss: never" else "Auto-dismiss: ${it}s"
+                    Spacer(Modifier.height(18.dp))
+                    OptionRow(
+                        title = "Auto-dismiss",
+                        subtitle = "Clear it on its own if you never answer",
+                        options = AUTO_DISMISS_OPTIONS,
+                        selected = draft.delivery.autoDismissSeconds,
+                        onSelect = {
+                            viewModel.setDelivery(draft.delivery.copy(autoDismissSeconds = it))
                         },
-                        value = draft.delivery.autoDismissSeconds.toFloat(),
-                        range = 0f..300f,
-                        onValueChange = {
-                            viewModel.setDelivery(draft.delivery.copy(autoDismissSeconds = it.toInt()))
-                        },
+                        modifier = Modifier.padding(horizontal = 18.dp),
                     )
+                    Spacer(Modifier.height(6.dp))
                 }
             }
 
@@ -477,31 +488,38 @@ private fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     subtitle: String? = null,
+    horizontalPadding: Dp = 18.dp,
 ) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = subtitle?.let { { Text(it) } },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
-    )
-}
-
-@Composable
-private fun SliderRow(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onValueChange: (Float) -> Unit,
-) {
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Slider(value = value, onValueChange = onValueChange, valueRange = range)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (subtitle != null) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.size(12.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
 @Composable
 private fun ConstraintsSection(
-    constraints: com.rahulgorai.remiit.data.model.RuleConstraints,
-    onChange: (com.rahulgorai.remiit.data.model.RuleConstraints) -> Unit,
+    constraints: RuleConstraints,
+    onChange: (RuleConstraints) -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -509,32 +527,30 @@ private fun ConstraintsSection(
         ),
         shape = MaterialTheme.shapes.large,
     ) {
-        Column(Modifier.padding(vertical = 8.dp)) {
-            SliderRow(
-                label = constraints.cooldownMinutes.let {
-                    if (it == 0) "Cooldown: none" else "Cooldown: ${formatMinutes(it)}"
-                },
-                value = constraints.cooldownMinutes.toFloat(),
-                range = 0f..240f,
-                onValueChange = { onChange(constraints.copy(cooldownMinutes = it.toInt())) },
-            )
-            SliderRow(
-                label = constraints.maxFiresPerDay.let {
-                    if (it == 0) "Max per day: unlimited" else "Max per day: $it"
-                },
-                value = constraints.maxFiresPerDay.toFloat(),
-                range = 0f..48f,
-                onValueChange = { onChange(constraints.copy(maxFiresPerDay = it.toInt())) },
+        Column(Modifier.padding(18.dp)) {
+            OptionRow(
+                title = "Cooldown",
+                subtitle = "Ignore the trigger again for this long after firing",
+                options = COOLDOWN_OPTIONS,
+                selected = constraints.cooldownMinutes,
+                onSelect = { onChange(constraints.copy(cooldownMinutes = it)) },
             )
 
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            Spacer(Modifier.height(18.dp))
+
+            OptionRow(
+                title = "Most per day",
+                options = MAX_PER_DAY_OPTIONS,
+                selected = constraints.maxFiresPerDay,
+                onSelect = { onChange(constraints.copy(maxFiresPerDay = it)) },
+            )
+
+            SettingDivider()
 
             val quiet = constraints.quietHours
             SwitchRow(
                 title = "Quiet hours",
-                subtitle = quiet?.let {
-                    "Silent from ${clock(it.startMinuteOfDay)} to ${clock(it.endMinuteOfDay)}"
-                } ?: "Never silent",
+                subtitle = quiet?.let { "Silent between these times" } ?: "Never silent",
                 checked = quiet != null,
                 onCheckedChange = { enabled ->
                     onChange(
@@ -543,67 +559,85 @@ private fun ConstraintsSection(
                         )
                     )
                 },
+                horizontalPadding = 0.dp,
             )
 
             if (quiet != null) {
-                SliderRow(
-                    label = "Quiet from ${clock(quiet.startMinuteOfDay)}",
-                    value = quiet.startMinuteOfDay.toFloat(),
-                    range = 0f..1439f,
-                    onValueChange = {
-                        onChange(constraints.copy(quietHours = quiet.copy(startMinuteOfDay = it.toInt())))
+                Spacer(Modifier.height(10.dp))
+                TimeField(
+                    label = "From",
+                    minuteOfDay = quiet.startMinuteOfDay,
+                    onPick = {
+                        onChange(constraints.copy(quietHours = quiet.copy(startMinuteOfDay = it)))
                     },
                 )
-                SliderRow(
-                    label = "Quiet until ${clock(quiet.endMinuteOfDay)}",
-                    value = quiet.endMinuteOfDay.toFloat(),
-                    range = 0f..1439f,
-                    onValueChange = {
-                        onChange(constraints.copy(quietHours = quiet.copy(endMinuteOfDay = it.toInt())))
+                Spacer(Modifier.height(8.dp))
+                TimeField(
+                    label = "Until",
+                    minuteOfDay = quiet.endMinuteOfDay,
+                    onPick = {
+                        onChange(constraints.copy(quietHours = quiet.copy(endMinuteOfDay = it)))
                     },
                 )
             }
 
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SettingDivider()
 
             Text(
-                "Active days",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                text = "Active days",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(horizontal = 16.dp),
-            ) {
-                listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, label ->
-                    val iso = index + 1
-                    // An empty set means every day, so an all-selected UI state
-                    // maps back to empty rather than to all seven.
-                    val active = constraints.activeDays.isEmpty() || iso in constraints.activeDays
-                    FilterChip(
-                        selected = active,
-                        onClick = {
-                            val current = constraints.activeDays.ifEmpty { (1..7).toSet() }
-                            val next = if (iso in current) current - iso else current + iso
-                            onChange(
-                                constraints.copy(
-                                    activeDays = if (next.size == 7) emptySet() else next
-                                )
-                            )
-                        },
-                        label = { Text(label) },
-                        // A selected FilterChip drops its border by default,
-                        // which makes the selected days read as a different kind
-                        // of object from the unselected ones.
-                        border = RemiitBorders.interactive(),
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+            DayToggles(
+                activeDays = constraints.activeDays,
+                onChange = { onChange(constraints.copy(activeDays = it)) },
+            )
         }
     }
 }
+
+/** A hairline between settings inside one card, with the breathing room to match. */
+@Composable
+private fun SettingDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 18.dp),
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
+}
+
+private val SNOOZE_OPTIONS = listOf(
+    Option(0, "Off"),
+    Option(5, "5 min"),
+    Option(10, "10 min"),
+    Option(15, "15 min"),
+    Option(30, "30 min"),
+)
+
+private val AUTO_DISMISS_OPTIONS = listOf(
+    Option(0, "Never"),
+    Option(15, "15s"),
+    Option(30, "30s"),
+    Option(60, "1 min"),
+    Option(300, "5 min"),
+)
+
+private val COOLDOWN_OPTIONS = listOf(
+    Option(0, "None"),
+    Option(5, "5 min"),
+    Option(15, "15 min"),
+    Option(30, "30 min"),
+    Option(60, "1 hour"),
+    Option(240, "4 hours"),
+)
+
+private val MAX_PER_DAY_OPTIONS = listOf(
+    Option(0, "Unlimited"),
+    Option(1, "Once"),
+    Option(3, "3"),
+    Option(5, "5"),
+    Option(10, "10"),
+)
 
 private fun TriggerKind.label(): String = when (this) {
     TriggerKind.TIME -> "Time"

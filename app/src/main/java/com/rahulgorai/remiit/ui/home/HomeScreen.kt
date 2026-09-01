@@ -24,7 +24,7 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.RuleCard
+import com.rahulgorai.remiit.ui.components.formatNextFire
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
 import org.koin.androidx.compose.koinViewModel
 
@@ -64,8 +65,12 @@ fun HomeScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            LargeTopAppBar(
-                title = { Text("Rules") },
+            // A plain bar rather than a large collapsing one. The large variant
+            // reserves about 100dp for a one-word title, and with nothing else
+            // in it the screen opened on a band of empty space. The headline
+            // below carries the weight instead, and says something useful.
+            TopAppBar(
+                title = { Text("Rules", style = MaterialTheme.typography.titleLarge) },
                 actions = {
                     BorderedIconButton(
                         icon = Icons.Outlined.Shield,
@@ -74,7 +79,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(end = 12.dp),
                     )
                 },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -121,6 +126,20 @@ fun HomeScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    // What is actually coming, in the space the oversized title
+                    // used to occupy. On a screen whose whole job is "what will
+                    // interrupt me and when", that is the first thing worth
+                    // saying — and it is the one fact the cards below cannot
+                    // show without the reader comparing every one of them.
+                    item(key = "summary") {
+                        Summary(
+                            total = rules.size,
+                            active = rules.count { it.rule.isEnabled },
+                            soonest = rules.mapNotNull { it.nextFire }.minOrNull(),
+                            modifier = Modifier.padding(bottom = 4.dp),
+                        )
+                    }
+
                     items(items = rules, key = { it.rule.id }) { state ->
                         RuleCard(
                             rule = state.rule,
@@ -135,6 +154,34 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** One line of orientation above the list. */
+@Composable
+private fun Summary(
+    total: Int,
+    active: Int,
+    soonest: java.time.Instant?,
+    modifier: Modifier = Modifier,
+) {
+    val counts = when {
+        active == total -> "$total ${if (total == 1) "rule" else "rules"}, all on"
+        active == 0 -> "$total ${if (total == 1) "rule" else "rules"}, all paused"
+        else -> "$active of $total on"
+    }
+    Column(modifier) {
+        Text(
+            text = soonest?.let { "Next ${formatNextFire(it)}" } ?: "Nothing scheduled next",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = counts,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
