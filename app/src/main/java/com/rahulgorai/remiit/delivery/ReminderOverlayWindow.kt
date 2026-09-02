@@ -180,17 +180,19 @@ object ReminderOverlayWindow {
             }
         }
 
-        // Back closes it as a dismissal, so the window can never trap the user.
-        // Focusable for the same reason — an unfocusable overlay swallows the
-        // key without acting on it.
+        // Back is swallowed, deliberately.
+        //
+        // A reminder is a question, and a reflex swipe is not an answer to it —
+        // losing an alarm to muscle memory is the failure this whole delivery
+        // path exists to prevent. There is no trap in refusing it either: the
+        // surface always offers an explicit way out, whether that is
+        // Complete/Not done, a plain Dismiss, or Snooze.
+        //
+        // Focusable so the key arrives here at all; an unfocusable overlay never
+        // receives it, and the press would fall through to the app underneath.
         compose.isFocusableInTouchMode = true
-        compose.setOnKeyListener { _, keyCode, event ->
-            if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                respond(ReminderOutcome.DISMISSED)
-                true
-            } else {
-                false
-            }
+        compose.setOnKeyListener { _, keyCode, _ ->
+            keyCode == KeyEvent.KEYCODE_BACK
         }
 
         val params = WindowManager.LayoutParams(
