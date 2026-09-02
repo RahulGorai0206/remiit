@@ -45,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,16 +83,6 @@ fun ReminderOverlayScreen(
     // for anything that is not an alarm.
     val autoDismissSeconds = rule.delivery.autoDismissSeconds
     var remaining by remember { mutableIntStateOf(autoDismissSeconds) }
-    if (autoDismissSeconds > 0) {
-        LaunchedEffect(rule.id, autoDismissSeconds) {
-            while (remaining > 0) {
-                delay(1_000)
-                remaining -= 1
-            }
-            onExpire()
-        }
-    }
-
     // Grows out of the middle of the screen rather than being switched on.
     //
     // The reminder arrives over whatever you were doing, so it needs a moment
@@ -102,9 +93,45 @@ fun ReminderOverlayScreen(
     val entrance = remember { MutableTransitionState(false) }
     LaunchedEffect(rule.id) { entrance.targetState = true }
 
+    // Answering used to tear the window down in the same frame, so the exit
+    // transition existed but never had time to run — the reminder simply
+    // vanished. The response is held here instead and fired once the surface
+    // has finished leaving, which is what lets the exit mirror the entrance.
+    var pendingAnswer by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val leave: (() -> Unit) -> Unit = { answer ->
+        // Guarded: a second tap during the exit must not queue a second answer.
+        if (pendingAnswer == null) {
+            pendingAnswer = answer
+            entrance.targetState = false
+        }
+    }
+    if (entrance.isIdle && !entrance.currentState) {
+        LaunchedEffect(Unit) {
+            pendingAnswer?.let { answer ->
+                pendingAnswer = null
+                answer()
+            }
+        }
+    }
+
+    val complete = { leave(onComplete) }
+    val incomplete = { leave(onIncomplete) }
+    val snooze = { leave(onSnooze) }
+
+    if (autoDismissSeconds > 0) {
+        LaunchedEffect(rule.id, autoDismissSeconds) {
+            while (remaining > 0) {
+                delay(1_000)
+                remaining -= 1
+            }
+            leave(onExpire)
+        }
+    }
+
+
     val scrim by animateFloatAsState(
         targetValue = if (entrance.targetState) 1f else 0f,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 240),
         label = "overlay-scrim",
     )
 
@@ -123,7 +150,11 @@ fun ReminderOverlayScreen(
             initialScale = 0.88f,
             animationSpec = tween(durationMillis = 340, easing = OvershootEasing),
         ) + fadeIn(tween(durationMillis = 180)),
-        exit = scaleOut(targetScale = 0.9f, animationSpec = tween(160)) + fadeOut(tween(120)),
+        exit = scaleOut(
+            transformOrigin = TransformOrigin.Center,
+            targetScale = 0.88f,
+            animationSpec = tween(durationMillis = 340, easing = OvershootEasing),
+        ) + fadeOut(tween(durationMillis = 180, delayMillis = 160)),
     ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -187,7 +218,7 @@ fun ReminderOverlayScreen(
             ) {
                 if (rule.delivery.showCompleteIncomplete) {
                     Button(
-                        onClick = onComplete,
+                        onClick = complete,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(72.dp),
@@ -208,7 +239,7 @@ fun ReminderOverlayScreen(
                     Spacer(Modifier.height(12.dp))
 
                     OutlinedButton(
-                        onClick = onIncomplete,
+                        onClick = incomplete,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp),
@@ -227,7 +258,7 @@ fun ReminderOverlayScreen(
                     }
                 } else {
                     Button(
-                        onClick = onComplete,
+                        onClick = complete,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(72.dp),
@@ -244,7 +275,7 @@ fun ReminderOverlayScreen(
                 if (rule.delivery.snoozeMinutes > 0) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
-                        onClick = onSnooze,
+                        onClick = snooze,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
