@@ -58,6 +58,18 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!--
+      Draws the reminder as its own window when the phone is unlocked.
+
+      A full-screen intent only launches its activity when the device is locked
+      or the screen is off; unlocked it becomes a heads-up notification, and
+      starting the activity directly is blocked by the background activity-start
+      rules. An overlay window is the one route that is not an activity start.
+      Granted by hand in Settings, never by a prompt — without it, full-screen
+      reminders simply fall back to a notification.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!-- Manufacturer battery managers are the main cause of triggers dying. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 

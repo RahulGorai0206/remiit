@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 /** Follow the system setting, or override it. */
 enum class ThemeMode { AUTO, LIGHT, DARK }
@@ -17,6 +18,25 @@ enum class ThemeMode { AUTO, LIGHT, DARK }
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "remiit_settings")
 
 class SettingsStore(private val context: Context) {
+
+    /**
+     * Last values seen by a collector, readable synchronously.
+     *
+     * The reminder overlay is built from a plain window rather than an Activity,
+     * so there is no lifecycle scope to await a DataStore read in and no way to
+     * suspend on the delivery path. These are updated as the flows below emit,
+     * which covers every case where the app has been opened this process. A
+     * process started cold by an alarm falls back to the defaults, which is the
+     * right failure: a reminder shown in the system theme beats one delayed to
+     * look up a colour.
+     */
+    @Volatile
+    var themeModeSnapshot: ThemeMode = ThemeMode.AUTO
+        private set
+
+    @Volatile
+    var dynamicColorSnapshot: Boolean = true
+        private set
 
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
@@ -28,10 +48,12 @@ class SettingsStore(private val context: Context) {
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         prefs[Keys.THEME_MODE]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
             ?: ThemeMode.AUTO
-    }
+    }.onEach { themeModeSnapshot = it }
 
     /** Material You. On by default — following the device accent is the point. */
-    val dynamicColor: Flow<Boolean> = context.dataStore.data.map { it[Keys.DYNAMIC_COLOR] ?: true }
+    val dynamicColor: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.DYNAMIC_COLOR] ?: true }
+            .onEach { dynamicColorSnapshot = it }
 
     val onboardingComplete: Flow<Boolean> =
         context.dataStore.data.map { it[Keys.ONBOARDING_DONE] ?: false }

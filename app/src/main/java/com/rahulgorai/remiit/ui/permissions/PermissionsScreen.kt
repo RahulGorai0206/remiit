@@ -163,6 +163,14 @@ fun PermissionsScreen(onBack: () -> Unit) {
                 onFix = { context.openSettings(Permissions.usageAccessSettings()) },
             ),
             PermissionRow(
+                title = "Display over other apps",
+                whyItMatters = "Lets a full-screen reminder take over the screen while " +
+                    "you are using the phone. Without it Android shows a notification " +
+                    "instead, and only opens the reminder when you tap it.",
+                granted = Permissions.canDrawOverlays(context),
+                onFix = { context.openSettings(Permissions.overlaySettings(context)) },
+            ),
+            PermissionRow(
                 title = "Unrestricted battery",
                 whyItMatters = "Battery optimisation is the usual reason reminders " +
                     "work for a day and then stop.",

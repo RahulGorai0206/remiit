@@ -55,7 +55,7 @@ val appModule = module {
     single { RuleRepository(ruleDao = get(), eventDao = get(), clock = get()) }
     single { SettingsStore(androidContext()) }
 
-    single { ReminderDispatcher(androidContext()) }
+    single { ReminderDispatcher(context = androidContext(), settings = get()) }
     // ReminderDispatcher is the only ReminderDelivery. Bound separately so the
     // engine depends on the narrow interface — which is what makes its decision
     // logic testable without an Android Context. Same pattern as TriggerSink

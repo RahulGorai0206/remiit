@@ -73,6 +73,12 @@ object Permissions {
         return manager.isIgnoringBatteryOptimizations(context.packageName)
     }
 
+    /**
+     * "Display over other apps" — what lets a full-screen reminder actually take
+     * over an unlocked screen instead of arriving as a notification.
+     */
+    fun canDrawOverlays(context: Context): Boolean = Settings.canDrawOverlays(context)
+
     fun areLocationServicesEnabled(context: Context): Boolean {
         val manager = context.getSystemService(android.location.LocationManager::class.java)
             ?: return false
@@ -95,6 +101,9 @@ object Permissions {
         Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", appUri(context))
 
     fun usageAccessSettings(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+
+    fun overlaySettings(context: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, appUri(context))
 
     fun appDetailsSettings(context: Context): Intent =
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri(context))

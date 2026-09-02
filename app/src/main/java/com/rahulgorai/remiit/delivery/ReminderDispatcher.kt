@@ -9,6 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.rahulgorai.remiit.R
 import com.rahulgorai.remiit.data.model.DeliveryMode
 import com.rahulgorai.remiit.data.model.ReminderRule
+import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.ui.reminder.ReminderOverlayActivity
 import com.rahulgorai.remiit.util.PENDING_INTENT_FLAGS
 import com.rahulgorai.remiit.util.Permissions
@@ -26,13 +27,37 @@ import com.rahulgorai.remiit.util.requestCodeFor
  */
 class ReminderDispatcher(
     private val context: Context,
+    private val settings: SettingsStore,
 ) : ReminderDelivery {
     private val notificationManager = context.getSystemService(NotificationManager::class.java)
 
     override fun deliver(rule: ReminderRule, eventId: Long, triggerSummary: String) {
         NotificationChannels.ensureCreated(context)
-
         val config = rule.delivery
+
+        // An overlay window, when the user has allowed one and the screen is
+        // actually there to be taken over. This is the only way a full-screen
+        // reminder reaches an unlocked phone: the notification's full-screen
+        // intent is honoured solely when the device is locked or the display is
+        // off, and starting the activity directly is refused as a background
+        // activity start.
+        //
+        // The notification is skipped entirely when the overlay is showing.
+        // Posting both would put a heads-up on top of the very surface it is
+        // meant to replace, and the fire is already recorded in history — the
+        // notification was never the record of it.
+        if (config.usesFullScreen && ReminderOverlayWindow.isUsableNow(context)) {
+            val shown = ReminderOverlayWindow.show(
+                context = context,
+                rule = rule,
+                eventId = eventId,
+                triggerSummary = triggerSummary,
+                themeMode = settings.themeModeSnapshot,
+                dynamicColor = settings.dynamicColorSnapshot,
+            )
+            if (shown) return
+        }
+
         val notificationId = ReminderActionReceiver.notificationIdFor(eventId)
 
         val builder = NotificationCompat.Builder(context, NotificationChannels.channelFor(config.mode))
