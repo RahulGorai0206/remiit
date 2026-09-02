@@ -1,7 +1,6 @@
 package com.rahulgorai.remiit.ui.reminder
 
 import androidx.compose.animation.core.RepeatMode
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -114,14 +113,6 @@ fun ReminderOverlayScreen(
             }
         }
     }
-
-    // Matches the overlay window: back does not answer a reminder.
-    //
-    // Without this the activity path finished silently on back — no outcome
-    // recorded, so the reminder sat in history as PENDING for ever. The two
-    // paths disagreeing about something this basic is worse than either
-    // behaviour on its own.
-    BackHandler(enabled = true) { /* deliberately ignored */ }
 
     val complete = { leave(onComplete) }
     val incomplete = { leave(onIncomplete) }

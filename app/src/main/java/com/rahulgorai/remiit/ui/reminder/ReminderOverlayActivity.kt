@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import android.graphics.Color
 import androidx.activity.SystemBarStyle
@@ -133,6 +134,14 @@ class ReminderOverlayActivity : ComponentActivity() {
 
             setContent {
                 RemiitTheme(themeMode = themeMode, dynamicColor = dynamicColor) {
+                    // Back does not answer a reminder — a reflex swipe is not a
+                    // response to a question. Registered here rather than inside
+                    // ReminderOverlayScreen because that screen is shared with
+                    // the overlay window, which has no Activity behind it and so
+                    // no back dispatcher for BackHandler to attach to; composing
+                    // one there throws on the spot.
+                    BackHandler(enabled = true) { /* deliberately ignored */ }
+
                     ReminderOverlayScreen(
                         rule = rule,
                         triggerSummary = triggerSummary,
