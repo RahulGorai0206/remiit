@@ -1,7 +1,16 @@
 package com.rahulgorai.remiit.ui.reminder
 
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -83,6 +92,39 @@ fun ReminderOverlayScreen(
         }
     }
 
+    // Grows out of the middle of the screen rather than being switched on.
+    //
+    // The reminder arrives over whatever you were doing, so it needs a moment
+    // that says "this came from somewhere" — a surface appearing fully formed
+    // reads as a glitch. Scaling from the centre while the backdrop fades is
+    // the cheapest motion that does that: one transform on one layer, which
+    // matters because this is often the first thing drawn after a wake-up.
+    val entrance = remember { MutableTransitionState(false) }
+    LaunchedEffect(rule.id) { entrance.targetState = true }
+
+    val scrim by animateFloatAsState(
+        targetValue = if (entrance.targetState) 1f else 0f,
+        animationSpec = tween(durationMillis = 220),
+        label = "overlay-scrim",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = scrim))
+    ) {
+    AnimatedVisibility(
+        visibleState = entrance,
+        enter = scaleIn(
+            // Anchored to the middle, and starting close to full size — a small
+            // start scale reads as a zoom rather than an arrival, and on an
+            // alarm that is a second of unreadable text.
+            transformOrigin = TransformOrigin.Center,
+            initialScale = 0.88f,
+            animationSpec = tween(durationMillis = 340, easing = OvershootEasing),
+        ) + fadeIn(tween(durationMillis = 180)),
+        exit = scaleOut(targetScale = 0.9f, animationSpec = tween(160)) + fadeOut(tween(120)),
+    ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surface,
@@ -226,6 +268,8 @@ fun ReminderOverlayScreen(
             }
         }
     }
+    }
+    }
 }
 
 /**
@@ -280,3 +324,11 @@ private fun PulsingHalo(active: Boolean) {
         }
     }
 }
+
+/**
+ * A touch past the target and back, so the reminder lands rather than stopping.
+ *
+ * Deliberately gentle: enough to read as physical, not enough to wobble
+ * something the user is meant to answer immediately.
+ */
+private val OvershootEasing = CubicBezierEasing(0.18f, 0.9f, 0.22f, 1.06f)

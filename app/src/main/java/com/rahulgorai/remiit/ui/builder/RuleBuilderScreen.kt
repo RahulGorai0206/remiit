@@ -205,6 +205,13 @@ fun RuleBuilderScreen(
             SectionHeader("Triggers")
 
             draft.triggers.forEach { trigger ->
+                // Under the trigger it belongs to, not collected at the bottom:
+                // a rule with three triggers and one missing grant needs to say
+                // *which* one is dead.
+                GateWarning(
+                    gate = rememberTriggerGate(trigger.kind),
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
                 TriggerRow(
                     trigger = trigger,
                     onEdit = {
@@ -289,6 +296,12 @@ fun RuleBuilderScreen(
                         label = { Text(mode.label(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     )
                 }
+            }
+
+            val deliveryGate = rememberDeliveryGate(draft.delivery.mode)
+            if (!deliveryGate.satisfied) {
+                Spacer(Modifier.height(12.dp))
+                GateWarning(deliveryGate)
             }
 
             Spacer(Modifier.height(12.dp))
