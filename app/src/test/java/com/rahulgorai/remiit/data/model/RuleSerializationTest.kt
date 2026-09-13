@@ -77,8 +77,8 @@ class RuleSerializationTest {
 
     @Test
     fun `discriminator names are the persisted contract`() {
-        // These strings are written into the database and into the AI prompt
-        // schema. Renaming one orphans saved rules, so pin them explicitly.
+        // These strings are written into the database. Renaming one orphans
+        // every saved rule that used it, so pin them explicitly.
         val json = RemiitJson.encodeToString(triggers, everyTriggerKind)
         listOf("\"time\"", "\"wifi\"", "\"location\"", "\"app_launch\"").forEach {
             assertTrue("missing trigger discriminator $it", it in json)

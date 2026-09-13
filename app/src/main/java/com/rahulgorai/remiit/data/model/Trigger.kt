@@ -8,9 +8,8 @@ import kotlinx.serialization.Serializable
  *
  * Triggers are stored as polymorphic JSON inside the rule row rather than in
  * separate tables. That keeps a rule a single self-contained document, which
- * matters for two reasons: adding a new trigger kind needs no schema
- * migration, and the planned on-device AI can emit a complete rule as one JSON
- * object without knowing anything about the database.
+ * matters because adding a new trigger kind needs no schema migration, and a
+ * whole rule moves as one JSON object without any knowledge of the database.
  *
  * The [SerialName] discriminators are part of the persisted format — renaming
  * one silently orphans every saved rule that used it.

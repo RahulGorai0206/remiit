@@ -1,7 +1,5 @@
 package com.rahulgorai.remiit.di
 
-import com.rahulgorai.remiit.ai.KeywordRuleIntentParser
-import com.rahulgorai.remiit.ai.RuleIntentParser
 import com.rahulgorai.remiit.data.db.RemiitDatabase
 import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.data.repo.RuleRepository
@@ -98,9 +96,6 @@ val appModule = module {
             scope = get(),
         )
     }
-
-    // Stub until an on-device model is wired in; see ai/RuleIntentParser.
-    single<RuleIntentParser> { KeywordRuleIntentParser() }
 
     viewModel {
         HomeViewModel(

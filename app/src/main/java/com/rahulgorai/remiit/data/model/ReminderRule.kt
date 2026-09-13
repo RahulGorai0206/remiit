@@ -12,8 +12,8 @@ import java.time.ZoneId
  *
  * The three composite fields ([triggers], [delivery], [constraints]) are stored
  * as JSON columns. A rule is therefore one self-contained document, which is
- * what lets the planned on-device AI produce a complete rule in a single step
- * and lets new trigger kinds ship without a schema migration.
+ * what lets new trigger kinds ship without a schema migration and lets a rule
+ * be exported, restored or copied as a single value.
  */
 @Entity(tableName = "reminder_rules")
 @Serializable
@@ -71,8 +71,8 @@ private fun runCatchingZone(id: String): ZoneId? =
     try {
         ZoneId.of(id)
     } catch (_: Exception) {
-        // A rule can outlive a zone id (tzdb renames, or an AI-authored rule
-        // with a bad zone). Falling back to the device zone keeps the rule
-        // firing instead of dropping it silently.
+        // A rule can outlive a zone id — tzdb renames zones, and a restored
+        // rule may name one this device does not know. Falling back to the
+        // device zone keeps the rule firing instead of dropping it silently.
         null
     }

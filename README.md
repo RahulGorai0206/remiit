@@ -20,7 +20,7 @@ data is identical to `ic_launcher_foreground.xml`, so copy edits across verbatim
 
 A rule is one self-contained document: triggers, delivery config and constraints
 are stored as JSON columns on a single row. Adding a trigger kind needs no schema
-migration, and a future on-device model can emit a whole rule in one step.
+migration, and a rule can be moved or restored as a single value.
 
 **Triggers** — any combination of:
 
@@ -102,9 +102,9 @@ RELEASE_KEY_ALIAS=…
 RELEASE_KEY_PASSWORD=…
 ```
 
-> The two ABI APKs are currently byte-identical in content — there is no native
-> code yet. The split is configured because the planned on-device AI runtime
-> ships `.so` libraries.
+> The two ABI APKs are currently byte-identical in content — the app ships no
+> native code of its own. The split is configured ahead of any dependency that
+> does; until one arrives it costs a second artifact and buys nothing.
 
 ## Releasing
 
@@ -144,9 +144,3 @@ adb install -r app/build/outputs/apk/release/app-arm64-v8a-release.apk
 **Run this against the release APK, not just debug.** The failure mode for a
 missing R8 keep is an app that installs and runs fine but silently stops firing.
 
-## Not built yet
-
-On-device AI rule creation from chat or voice. The seam is in place:
-`ai/RuleIntentParser` with the JSON schema a model must emit documented beside
-it, and a regex stub keeping the call sites exercised. Wiring MediaPipe
-`tasks-genai` should touch nothing outside `ai/`.

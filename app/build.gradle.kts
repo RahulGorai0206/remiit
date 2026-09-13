@@ -124,10 +124,9 @@ android {
         }
     }
 
-    // Per-ABI APKs. There is no native code in the app today, so the two
-    // outputs currently differ only in filename — the split is configured now
-    // because the planned on-device AI runtime ships .so libraries, at which
-    // point it starts saving real download size.
+    // Per-ABI APKs. The app ships no native code today, so the two outputs
+    // currently differ only in filename and the split buys nothing — it is
+    // here ready for the first dependency that does carry .so libraries.
     splits {
         abi {
             isEnable = true
