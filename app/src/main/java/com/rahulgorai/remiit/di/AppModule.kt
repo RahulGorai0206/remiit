@@ -1,7 +1,13 @@
 package com.rahulgorai.remiit.di
 
+import com.rahulgorai.remiit.automation.AndroidDeviceControls
+import com.rahulgorai.remiit.automation.AutomationEngine
+import com.rahulgorai.remiit.automation.AutomationGeofences
+import com.rahulgorai.remiit.automation.AutomationSink
+import com.rahulgorai.remiit.automation.DeviceControls
 import com.rahulgorai.remiit.data.db.RemiitDatabase
 import com.rahulgorai.remiit.data.prefs.SettingsStore
+import com.rahulgorai.remiit.data.repo.AutomationRepository
 import com.rahulgorai.remiit.data.repo.RuleRepository
 import com.rahulgorai.remiit.delivery.ReminderDelivery
 import com.rahulgorai.remiit.delivery.ReminderDispatcher
@@ -11,12 +17,15 @@ import com.rahulgorai.remiit.engine.TriggerSink
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
 import com.rahulgorai.remiit.trigger.applaunch.DefaultPackageIntrospector
 import com.rahulgorai.remiit.trigger.applaunch.PackageIntrospector
+import com.rahulgorai.remiit.trigger.bluetooth.BluetoothTriggerMonitor
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.time.TimeTriggerScheduler
 import com.rahulgorai.remiit.trigger.wifi.WifiTriggerMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.rahulgorai.remiit.ui.automation.AutomationEditorViewModel
+import com.rahulgorai.remiit.ui.automation.AutomationViewModel
 import com.rahulgorai.remiit.ui.builder.RuleBuilderViewModel
 import com.rahulgorai.remiit.ui.history.HistoryViewModel
 import com.rahulgorai.remiit.ui.home.HomeViewModel
@@ -50,7 +59,9 @@ val appModule = module {
     single { RemiitDatabase.build(androidContext()) }
     single { get<RemiitDatabase>().ruleDao() }
     single { get<RemiitDatabase>().reminderEventDao() }
+    single { get<RemiitDatabase>().automationDao() }
     single { RuleRepository(ruleDao = get(), eventDao = get(), clock = get()) }
+    single { AutomationRepository(dao = get(), clock = get()) }
     single { SettingsStore(androidContext()) }
 
     single { ReminderDispatcher(context = androidContext(), settings = get()) }
@@ -65,14 +76,31 @@ val appModule = module {
     // depend on the narrow interface rather than the whole engine.
     single<TriggerSink> { get<RuleEngine>() }
 
+    single<DeviceControls> { AndroidDeviceControls(androidContext()) }
+    single { AutomationEngine(repository = get(), controls = get()) }
+    // The engine is the only AutomationSink. Bound separately for the same
+    // reason as TriggerSink below it: the Wi-Fi monitor, the Bluetooth monitor
+    // and the geofence receiver should depend on "somewhere to send a signal",
+    // not on the engine itself.
+    single<AutomationSink> { get<AutomationEngine>() }
+    single { AutomationGeofences(androidContext()) }
+
     single { TimeTriggerScheduler(context = androidContext(), clock = get()) }
     single { LocationTriggerMonitor(context = androidContext()) }
     single {
         WifiTriggerMonitor(
             context = androidContext(),
             sink = get(),
+            automationSink = get(),
             scope = get(),
             clock = get(),
+        )
+    }
+    single {
+        BluetoothTriggerMonitor(
+            context = androidContext(),
+            sink = get(),
+            scope = get(),
         )
     }
     single<PackageIntrospector> { DefaultPackageIntrospector(androidContext()) }
@@ -93,6 +121,8 @@ val appModule = module {
             locationMonitor = get(),
             wifiMonitor = get(),
             appLaunchDispatcher = get(),
+            automationRepository = get(),
+            automationGeofences = get(),
             scope = get(),
         )
     }
@@ -110,6 +140,14 @@ val appModule = module {
             repository = get(),
             coordinator = get(),
             engine = get(),
+            settings = get(),
+        )
+    }
+    viewModel { AutomationViewModel(repository = get(), coordinator = get()) }
+    viewModel {
+        AutomationEditorViewModel(
+            repository = get(),
+            coordinator = get(),
             settings = get(),
         )
     }

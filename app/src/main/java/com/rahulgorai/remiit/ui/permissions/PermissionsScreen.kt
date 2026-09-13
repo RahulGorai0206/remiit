@@ -60,9 +60,10 @@ private data class PermissionRow(
  * Live grant status for everything the app needs.
  *
  * This screen exists because every missing grant in this app fails silently:
- * the rule looks saved and enabled, and simply never fires. Listing them with
- * the consequence spelled out is the only way a user can tell a broken setup
- * from a working one.
+ * the rule looks saved and enabled, and simply never fires. Automations fail
+ * more quietly still — the phone just stays loud, with nothing to notice.
+ * Listing them with the consequence spelled out is the only way a user can tell
+ * a broken setup from a working one.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +92,10 @@ fun PermissionsScreen(onBack: () -> Unit) {
     ) { refreshKey++ }
 
     val backgroundLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { refreshKey++ }
+
+    val bluetoothLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { refreshKey++ }
 
@@ -169,6 +174,28 @@ fun PermissionsScreen(onBack: () -> Unit) {
                     "instead, and only opens the reminder when you tap it.",
                 granted = Permissions.canDrawOverlays(context),
                 onFix = { context.openSettings(Permissions.overlaySettings(context)) },
+            ),
+            PermissionRow(
+                title = "Do Not Disturb access",
+                whyItMatters = "Lets an automation silence the phone or switch Do Not " +
+                    "Disturb on and off. Android counts silencing as a Do Not Disturb " +
+                    "change, so this covers both. Find Remiit in the list that opens.",
+                granted = Permissions.hasDndAccess(context),
+                onFix = { context.openSettings(Permissions.dndAccessSettings()) },
+            ),
+            PermissionRow(
+                title = "Modify system settings",
+                whyItMatters = "Lets an automation turn adaptive brightness on or off. " +
+                    "Nothing else uses it.",
+                granted = Permissions.canWriteSystemSettings(context),
+                onFix = { context.openSettings(Permissions.writeSettingsSettings(context)) },
+            ),
+            PermissionRow(
+                title = "Nearby devices",
+                whyItMatters = "Lets you pick a paired Bluetooth device when writing an " +
+                    "automation. Automations already saved keep working without it.",
+                granted = Permissions.hasBluetoothConnect(context),
+                onFix = { bluetoothLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT) },
             ),
             PermissionRow(
                 title = "Unrestricted battery",

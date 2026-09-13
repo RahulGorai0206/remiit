@@ -14,6 +14,7 @@ import com.rahulgorai.remiit.R
 import com.rahulgorai.remiit.delivery.NotificationChannels
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
 import com.rahulgorai.remiit.trigger.applaunch.UsageStatsAppLaunchPoller
+import com.rahulgorai.remiit.trigger.bluetooth.BluetoothTriggerMonitor
 import com.rahulgorai.remiit.trigger.wifi.WifiTriggerMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,15 +25,16 @@ import org.koin.android.ext.android.inject
 /**
  * Hosts the trigger sources that need a live process.
  *
- * Only Wi-Fi callbacks and usage-stats polling need this. Time triggers go
- * through AlarmManager and location through geofences, both evaluated by the OS,
- * so a user with only those rules never sees this service or its notification —
+ * Only Wi-Fi callbacks, Bluetooth broadcasts and usage-stats polling need this.
+ * Time triggers go through AlarmManager and location through geofences, both
+ * evaluated by the OS, so a user with only those never sees this service —
  * [com.rahulgorai.remiit.engine.TriggerCoordinator] starts it only when a rule
  * actually requires it.
  */
 class RemiitMonitorService : Service() {
 
     private val wifiMonitor: WifiTriggerMonitor by inject()
+    private val bluetoothMonitor: BluetoothTriggerMonitor by inject()
     private val appLaunchDispatcher: AppLaunchDispatcher by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -44,6 +46,7 @@ class RemiitMonitorService : Service() {
         startForegroundCompat()
 
         wifiMonitor.start()
+        bluetoothMonitor.start()
         startPoller()
     }
 
@@ -73,6 +76,7 @@ class RemiitMonitorService : Service() {
         // OS killed the service) gets its second chance. start() is a no-op when
         // the callback is already live.
         wifiMonitor.start()
+        bluetoothMonitor.start()
         startPoller()
         // START_STICKY so the OS brings the service back if it is killed for
         // memory: a monitor that silently stays dead means rules stop firing
@@ -82,6 +86,7 @@ class RemiitMonitorService : Service() {
 
     override fun onDestroy() {
         wifiMonitor.stop()
+        bluetoothMonitor.stop()
         usageStatsPoller?.stop()
         scope.cancel()
         super.onDestroy()

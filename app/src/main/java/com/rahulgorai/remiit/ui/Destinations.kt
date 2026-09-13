@@ -5,6 +5,7 @@ import android.net.Uri
 /** Navigation routes. Kept as plain strings — the graph is small and flat. */
 object Routes {
     const val HOME = "home"
+    const val AUTOMATION = "automation"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val PERMISSIONS = "permissions"
@@ -29,5 +30,21 @@ object Routes {
         // unescaped "/" or "?" in a title would corrupt the destination.
         val encoded = Uri.encode(title.orEmpty())
         return "$BUILDER?$BUILDER_ARG_RULE_ID=$ruleId&$BUILDER_ARG_TITLE=$encoded"
+    }
+
+    /** Automation editor. A blank id means "new automation". */
+    const val AUTOMATION_EDITOR = "automation_editor"
+    const val AUTOMATION_ARG_ID = "automationId"
+    const val AUTOMATION_ARG_NAME = "name"
+
+    const val AUTOMATION_EDITOR_ROUTE =
+        "$AUTOMATION_EDITOR?$AUTOMATION_ARG_ID={$AUTOMATION_ARG_ID}" +
+            "&$AUTOMATION_ARG_NAME={$AUTOMATION_ARG_NAME}"
+
+    fun automationEditor(automationId: String? = null, name: String? = null): String {
+        if (automationId.isNullOrBlank()) return "$AUTOMATION_EDITOR?"
+        val encoded = Uri.encode(name.orEmpty())
+        return "$AUTOMATION_EDITOR?$AUTOMATION_ARG_ID=$automationId" +
+            "&$AUTOMATION_ARG_NAME=$encoded"
     }
 }

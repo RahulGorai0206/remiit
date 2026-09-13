@@ -8,6 +8,9 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.util.Log
+import com.rahulgorai.remiit.automation.AutomationSignal
+import com.rahulgorai.remiit.automation.AutomationSink
+import com.rahulgorai.remiit.data.model.AutomationEdge
 import com.rahulgorai.remiit.data.model.ReminderRule
 import com.rahulgorai.remiit.data.model.WifiEvent
 import com.rahulgorai.remiit.data.model.shortSummary
@@ -26,10 +29,18 @@ import java.util.concurrent.ConcurrentHashMap
  * unavailable to manifest receivers on modern Android, so this only works from
  * a running process — which is why [com.rahulgorai.remiit.service.RemiitMonitorService]
  * exists.
+ *
+ * One callback feeds two systems. Reminder rules are matched here, because the
+ * monitor already holds the rule list; automations are published as a raw
+ * signal for [AutomationSink] to match, because it reads its own table. The
+ * alternative — a second network callback for automations — would double the
+ * registration for no gain and make the two disagree whenever one of them
+ * failed to register.
  */
 class WifiTriggerMonitor(
     private val context: Context,
     private val sink: TriggerSink,
+    private val automationSink: AutomationSink,
     private val scope: CoroutineScope,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) {
@@ -184,9 +195,11 @@ class WifiTriggerMonitor(
                 .filter { it.event == event && it.ssid.equals(ssid, ignoreCase = true) }
                 .map { rule to it }
         }
-        if (matches.isEmpty()) {
-            Log.d(TAG, "$event $ssid matched no rule")
-            return
+        if (matches.isEmpty()) Log.d(TAG, "$event $ssid matched no rule")
+
+        val edge = when (event) {
+            WifiEvent.CONNECTED -> AutomationEdge.ENTER
+            WifiEvent.DISCONNECTED -> AutomationEdge.EXIT
         }
 
         scope.launch {
@@ -200,6 +213,9 @@ class WifiTriggerMonitor(
                     )
                 )
             }
+            // Published unconditionally, and outside the rule check above: an
+            // SSID with no reminder rule on it may still have an automation.
+            automationSink.onSignal(AutomationSignal.Wifi(ssid, edge))
         }
     }
 

@@ -2,13 +2,18 @@ package com.rahulgorai.remiit.engine
 
 import android.content.Context
 import android.util.Log
+import com.rahulgorai.remiit.automation.AutomationGeofences
+import com.rahulgorai.remiit.data.model.Automation
+import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.ReminderRule
+import com.rahulgorai.remiit.data.repo.AutomationRepository
 import com.rahulgorai.remiit.service.RemiitMonitorService
 import com.rahulgorai.remiit.trigger.applaunch.AppLaunchDispatcher
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.time.TimeTriggerScheduler
 import com.rahulgorai.remiit.trigger.wifi.WifiTriggerMonitor
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -16,12 +21,18 @@ import kotlinx.coroutines.launch
 import com.rahulgorai.remiit.data.repo.RuleRepository
 
 /**
- * Keeps the OS-side registrations in step with the rule table.
+ * Keeps the OS-side registrations in step with the database.
  *
- * Everything is driven off the enabled-rules flow, so toggling a rule is the
- * only action needed to arm or tear down its alarms, geofences and monitors.
- * There is no separate "apply" step that could fall out of sync with what the
- * database says.
+ * Everything is driven off the enabled-rules and enabled-automations flows, so
+ * toggling either is the only action needed to arm or tear down its alarms,
+ * geofences and monitors. There is no separate "apply" step that could fall out
+ * of sync with what the database says.
+ *
+ * Both tables are handled here, by one class, for one reason: they share the
+ * monitor service. If rules and automations each decided independently whether
+ * the service should run, the one with nothing to watch would keep stopping the
+ * service the other still needed. Combining the two flows makes that a single
+ * decision taken from a single consistent view.
  */
 class TriggerCoordinator(
     private val context: Context,
@@ -30,13 +41,18 @@ class TriggerCoordinator(
     private val locationMonitor: LocationTriggerMonitor,
     private val wifiMonitor: WifiTriggerMonitor,
     private val appLaunchDispatcher: AppLaunchDispatcher,
+    private val automationRepository: AutomationRepository,
+    private val automationGeofences: AutomationGeofences,
     private val scope: CoroutineScope,
 ) {
-    /** Starts following the rule table. Called once, from the Application. */
+    /** Starts following both tables. Called once, from the Application. */
     fun start() {
-        repository.observeEnabledRules()
+        combine(
+            repository.observeEnabledRules(),
+            automationRepository.observeEnabled(),
+        ) { rules, automations -> rules to automations }
             .distinctUntilChanged()
-            .onEach(::apply)
+            .onEach { (rules, automations) -> apply(rules, automations) }
             .launchIn(scope)
     }
 
@@ -47,13 +63,14 @@ class TriggerCoordinator(
      * the OS has thrown away alarms and geofences without telling the app.
      */
     suspend fun reconcileAll() {
-        apply(repository.enabledRules())
+        apply(repository.enabledRules(), automationRepository.enabled())
     }
 
-    private suspend fun apply(rules: List<ReminderRule>) {
+    private suspend fun apply(rules: List<ReminderRule>, automations: List<Automation>) {
         try {
             timeScheduler.rescheduleAll(rules)
             locationMonitor.sync(rules)
+            automationGeofences.sync(automations)
 
             wifiMonitor.updateRules(rules)
             appLaunchDispatcher.updateRules(rules)
@@ -62,9 +79,14 @@ class TriggerCoordinator(
             // needs a live process. A setup of purely time and location rules
             // runs with no persistent notification at all, because AlarmManager
             // and geofences are evaluated by the OS.
+            //
+            // Automations add Bluetooth to that list. Its connect/disconnect
+            // broadcasts are only delivered to a receiver registered from
+            // running code, so a Bluetooth automation needs the service for
+            // exactly the same reason a Wi-Fi rule does.
             val needsService = rules.any {
                 it.wifiTriggers.isNotEmpty() || it.appLaunchTriggers.isNotEmpty()
-            }
+            } || automations.any { it.trigger !is AutomationTrigger.Location }
 
             if (needsService) {
                 RemiitMonitorService.start(context)
@@ -89,6 +111,17 @@ class TriggerCoordinator(
             timeScheduler.cancel(rule)
             reconcileAll()
         }
+    }
+
+    /**
+     * Applies an automation's registrations immediately after a save or delete.
+     *
+     * The combined flow above would get there on its own, but not before the
+     * editor closes — and an automation that is not armed by the time the user
+     * is back on the list is one they will test and believe is broken.
+     */
+    fun onAutomationChanged() {
+        scope.launch { reconcileAll() }
     }
 
     private companion object {

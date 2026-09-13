@@ -4,6 +4,10 @@ Rule-based reminders for Android. A reminder is paired with the conditions that
 should trigger it — a time, a Wi-Fi network, arriving somewhere, opening an app —
 and, separately, with how loudly it announces itself.
 
+The same surroundings can also change the phone itself: **automations** put it on
+silent, vibrate, ring or Do Not Disturb, and turn adaptive brightness on or off,
+when you join a network, connect a Bluetooth device, or arrive somewhere.
+
 Targets Android 13 (API 33) and above. Distributed as sideloaded APKs.
 
 ## Icon
@@ -29,7 +33,7 @@ migration, and a rule can be moved or restored as a single value.
 | Time | daily / weekly / monthly / every-N-within-a-window / one-shot | `AlarmManager`, re-armed per fire |
 | Wi-Fi | connecting to or leaving a named SSID | live `ConnectivityManager` callback |
 | Place | entering, leaving or dwelling in a radius | Play Services geofences |
-| App launch | any app, or specific ones | accessibility service *or* usage-stats polling |
+| App launch | any app, or specific ones | usage-stats polling |
 
 `Any trigger` fires on the first match. `All triggers` requires every one within
 a bounded window, which is what makes "on office Wi-Fi **and** after 3pm" work.
@@ -42,17 +46,43 @@ every firing and response is logged.
 range. These are why "remind me on any app launch" is usable rather than a
 firehose.
 
-## App-launch detection: pick one
+## How an automation works
 
-Android has no ordinary API for noticing another app opened. Both routes work and
-trade off differently; the choice is in Settings.
+An automation is the sibling of a rule, not a kind of rule. A rule asks *you* to
+do something and waits for an answer; an automation changes a setting and expects
+nothing. There is no delivery mode, no snooze, and no Complete/Not done — folding
+the two together would have meant a rule type where most of a rule is meaningless.
 
-- **Accessibility service** — instant, almost no battery cost. Reads only which
-  package came to the foreground (the service config grants no content
-  retrieval). Needs an accessibility grant, and Google Play prohibits this use,
-  which is fine for sideloaded builds.
-- **Usage access** — Play-policy-safe, but polls once a second, so it lags and
-  keeps a foreground service alive.
+One trigger, not a list, because a single edge — this happened, do this — has no
+ambiguity about what should happen when half of it stops being true.
+
+| Trigger | Fires on | Mechanism |
+|---|---|---|
+| Wi-Fi | connecting to or leaving a named SSID | the rules' `ConnectivityManager` callback |
+| Bluetooth | a paired device connecting or disconnecting | runtime-registered ACL broadcasts |
+| Place | entering or leaving a radius | Play Services geofences, a second set |
+
+**Actions** — ringer (silent / vibrate / ring), Do Not Disturb on or off, and
+adaptive brightness on or off. Each is optional; leaving one alone is the default.
+
+The environment is shared with rules at the source. The Wi-Fi callback is
+registered once and feeds both: rules are matched inside the monitor, which
+already holds them, while automations are published as a raw signal for the
+automation engine to match against its own table. Geofences are the exception —
+Play Services keys a fence set by its `PendingIntent`, and both sides re-register
+their whole set on every change, so they need separate intents and receivers or
+each edit would wipe the other's fences.
+
+Automations fail more quietly than anything else in the app: the phone simply
+stays loud. Every run is therefore recorded on the row — what changed, or why it
+could not — and shown on the card.
+
+## App-launch detection
+
+Android has no ordinary API for noticing another app opened. Usage access is the
+only route: it polls once a second, so it lags slightly and keeps the foreground
+service alive. It is granted through Settings > Usage access rather than a
+runtime prompt.
 
 ## Why so many permissions
 
@@ -71,6 +101,12 @@ the consequence spelled out.
   permissions.
 - **Battery optimisation exemption** — the usual reason reminders work for a day
   and then stop.
+- **Do Not Disturb access** — lets an automation silence the phone or toggle Do
+  Not Disturb. Android treats silencing as a DND change, so this covers both.
+- **Modify system settings** — lets an automation change adaptive brightness.
+  Nothing else uses it.
+- **Nearby devices** — only to list paired Bluetooth devices when writing an
+  automation. Saved automations match on the address and keep working without it.
 
 ## Building
 

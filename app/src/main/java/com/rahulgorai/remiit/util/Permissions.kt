@@ -65,6 +65,28 @@ object Permissions {
         UsageStatsAppLaunchPoller.hasUsageAccess(context)
 
     /**
+     * BLUETOOTH_CONNECT, needed to list paired devices and read their names.
+     * A Bluetooth automation that is already saved keeps matching without it,
+     * because the broadcast carries the address rather than the name.
+     */
+    fun hasBluetoothConnect(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+            PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Do Not Disturb access. What lets an automation silence the phone or turn
+     * DND on — the ringer and the interruption filter are the same subsystem to
+     * Android, so silencing is a DND operation whether or not it is called one.
+     */
+    fun hasDndAccess(context: Context): Boolean {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return false
+        return manager.isNotificationPolicyAccessGranted
+    }
+
+    /** "Modify system settings" — what writing the adaptive-brightness mode needs. */
+    fun canWriteSystemSettings(context: Context): Boolean = Settings.System.canWrite(context)
+
+    /**
      * Manufacturer battery managers are the most common cause of "it worked for
      * a day and then stopped": they kill the monitor service and drop alarms.
      */
@@ -109,6 +131,19 @@ object Permissions {
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, appUri(context))
 
     fun locationSettings(): Intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+
+    /**
+     * The Do Not Disturb access list. A global screen with no per-app deep
+     * link — the user has to find this app in the list, which is worth saying
+     * on the card that sends them there.
+     */
+    fun dndAccessSettings(): Intent =
+        Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+
+    fun writeSettingsSettings(context: Context): Intent =
+        Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, appUri(context))
+
+    fun bluetoothSettings(): Intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
 
     fun batteryOptimizationSettings(context: Context): Intent =
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, appUri(context))

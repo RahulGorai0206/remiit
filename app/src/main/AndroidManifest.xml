@@ -43,6 +43,31 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Bluetooth automations. BLUETOOTH_CONNECT is a runtime permission from
+      Android 12; without it the paired-device picker is empty and device names
+      are unreadable. The connect/disconnect broadcasts themselves carry the
+      address, which needs no permission, so an automation saved while the grant
+      was held keeps working if it is later revoked.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!--
+      Lets an automation silence the phone or turn Do Not Disturb on. Holding
+      the permission is not enough: the user must also grant the app Do Not
+      Disturb access in Settings, which the permissions screen deep-links to.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <!--
+      Lets an automation turn adaptive brightness on or off. A special-access
+      grant made through Settings > Modify system settings, never a runtime
+      prompt — Settings.System.canWrite is the check.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <!-- Alarm-mode vibration. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
@@ -143,6 +168,16 @@
             android:exported="false" />
 
         <!--
+          Location automations. A separate receiver from the one above, because
+          Play Services keys a geofence set by its PendingIntent and the two
+          sets have to be replaceable independently.
+        -->
+        <receiver
+            android:name=".automation.AutomationGeofenceReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!--
           exported="true" is required for the system to deliver BOOT_COMPLETED;
           the intent-filter is what restricts who can actually reach it.
         -->
@@ -159,9 +194,10 @@
         </receiver>
 
         <!--
-          Hosts the Wi-Fi network callback and the usage-stats poller. Started
-          only when a rule needs it, so a purely time/location setup never shows
-          a persistent notification.
+          Hosts the Wi-Fi network callback, the Bluetooth connect/disconnect
+          receiver and the usage-stats poller. Started only when a rule or
+          automation needs it, so a purely time/location setup never shows a
+          persistent notification.
         -->
         <service
             android:name=".service.RemiitMonitorService"
@@ -170,7 +206,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Watches Wi-Fi connections and app launches so user-defined reminder rules can fire while the app is closed" />
+                android:value="Watches Wi-Fi and Bluetooth connections and app launches so user-defined reminder rules and automations can run while the app is closed" />
         </service>
 
     </application>

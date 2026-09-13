@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -67,6 +68,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.rahulgorai.remiit.ui.automation.AutomationEditorScreen
+import com.rahulgorai.remiit.ui.automation.AutomationScreen
 import com.rahulgorai.remiit.ui.builder.RuleBuilderScreen
 import com.rahulgorai.remiit.ui.history.HistoryScreen
 import com.rahulgorai.remiit.ui.home.HomeScreen
@@ -82,6 +85,7 @@ private data class TopLevelTab(
 
 private val tabs = listOf(
     TopLevelTab(Routes.HOME, "Rules", Icons.Outlined.Alarm),
+    TopLevelTab(Routes.AUTOMATION, "Automation", Icons.Outlined.Bolt),
     TopLevelTab(Routes.HISTORY, "History", Icons.Outlined.History),
     TopLevelTab(Routes.SETTINGS, "Settings", Icons.Outlined.Tune),
 )
@@ -283,11 +287,18 @@ private fun PillTab(
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.height(3.dp))
+        // labelSmall and no wrapping. With four tabs a slot is roughly a
+        // quarter of the pill's inner width — about 75dp on a small phone —
+        // and "Automation" at labelMedium does not fit that. Wrapping it onto
+        // two lines would make one tab taller than the rest and break the
+        // fixed-height row the travelling indicator is measured against, so
+        // the type gets smaller instead.
         Text(
             text = tab.label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = content,
             maxLines = 1,
+            softWrap = false,
         )
     }
 }
@@ -423,6 +434,16 @@ private fun RemiitNavHost(navController: NavHostController, tabBottomInset: Dp) 
             )
         }
 
+        composable(Routes.AUTOMATION) {
+            AutomationScreen(
+                onAdd = { navController.navigate(Routes.automationEditor()) },
+                onEdit = { id, name ->
+                    navController.navigate(Routes.automationEditor(id, name))
+                },
+                bottomInset = tabBottomInset,
+            )
+        }
+
         composable(Routes.HISTORY) { HistoryScreen(bottomInset = tabBottomInset) }
 
         composable(Routes.SETTINGS) {
@@ -455,6 +476,29 @@ private fun RemiitNavHost(navController: NavHostController, tabBottomInset: Dp) 
                 ruleId = entry.arguments?.getString(Routes.BUILDER_ARG_RULE_ID),
                 initialTitle = entry.arguments?.getString(Routes.BUILDER_ARG_TITLE),
                 onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.AUTOMATION_EDITOR_ROUTE,
+            arguments = listOf(
+                navArgument(Routes.AUTOMATION_ARG_ID) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument(Routes.AUTOMATION_ARG_NAME) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
+        ) { entry ->
+            AutomationEditorScreen(
+                automationId = entry.arguments?.getString(Routes.AUTOMATION_ARG_ID),
+                initialName = entry.arguments?.getString(Routes.AUTOMATION_ARG_NAME),
+                onDone = { navController.popBackStack() },
+                bottomInset = tabBottomInset,
             )
         }
     }

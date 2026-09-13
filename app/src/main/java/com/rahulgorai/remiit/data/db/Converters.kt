@@ -1,6 +1,8 @@
 package com.rahulgorai.remiit.data.db
 
 import androidx.room.TypeConverter
+import com.rahulgorai.remiit.data.model.AutomationActions
+import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.DeliveryConfig
 import com.rahulgorai.remiit.data.model.ReminderOutcome
 import com.rahulgorai.remiit.data.model.RuleConstraints
@@ -49,6 +51,28 @@ class Converters {
     @TypeConverter
     fun jsonToConstraints(value: String): RuleConstraints =
         if (value.isBlank()) RuleConstraints() else RemiitJson.decodeFromString(value)
+
+    @TypeConverter
+    fun automationTriggerToJson(value: AutomationTrigger): String =
+        RemiitJson.encodeToString(AutomationTrigger.serializer(), value)
+
+    /**
+     * A row whose trigger cannot be read is a row the app can do nothing with,
+     * and Room has no way to skip one — so this throws rather than substituting
+     * a default. A silent fallback would turn an unreadable automation into one
+     * that quietly watches the wrong network.
+     */
+    @TypeConverter
+    fun jsonToAutomationTrigger(value: String): AutomationTrigger =
+        RemiitJson.decodeFromString(AutomationTrigger.serializer(), value)
+
+    @TypeConverter
+    fun automationActionsToJson(value: AutomationActions): String =
+        RemiitJson.encodeToString(value)
+
+    @TypeConverter
+    fun jsonToAutomationActions(value: String): AutomationActions =
+        if (value.isBlank()) AutomationActions() else RemiitJson.decodeFromString(value)
 
     @TypeConverter
     fun outcomeToName(value: ReminderOutcome): String = value.name
