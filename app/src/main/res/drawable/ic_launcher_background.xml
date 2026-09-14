@@ -3,9 +3,12 @@
   Adaptive-icon background. Full-bleed 108dp so every launcher mask (circle,
   squircle, rounded square) has paint under it.
 
-  The blue is the app's own primary (#31628D in RemiitLightScheme), so a
-  dynamic-colour device still shows a launcher icon that matches the brand
-  rather than the wallpaper.
+  Near-black rather than the app's blue, which is the opposite of what a
+  brand-coloured icon usually does — and the point. The mark is a signal, and a
+  signal only reads as one against a dark ground. The app's primary makes its
+  appearance as the spill behind the orbit rather than as a field of colour,
+  which is also closer to what the app is: a quiet thing that lights up at the
+  moment something fires, usually at night.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -18,32 +21,32 @@
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
-                android:startX="6"
+                android:startX="4"
                 android:startY="0"
-                android:endX="102"
+                android:endX="104"
                 android:endY="108">
-                <item android:color="#FF1B4569" android:offset="0.0" />
-                <item android:color="#FF31628D" android:offset="0.55" />
-                <item android:color="#FF4E8CC0" android:offset="1.0" />
+                <item android:color="#FF141C24" android:offset="0.0" />
+                <item android:color="#FF0F1417" android:offset="0.5" />
+                <item android:color="#FF0B0F12" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
 
     <!--
-      Soft highlight up and left of centre. Keeps the icon from reading as a
-      flat swatch at small sizes, where the linear gradient alone is too
-      subtle to register.
+      The light the mark throws, painted on the background layer so it can
+      bleed past the glyph without the foreground's own edges clipping it.
+      Centred up and right, where the bead sits.
     -->
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="radial"
-                android:centerX="33"
-                android:centerY="28"
-                android:gradientRadius="82">
-                <item android:color="#38FFFFFF" android:offset="0.0" />
-                <item android:color="#10FFFFFF" android:offset="0.55" />
-                <item android:color="#00FFFFFF" android:offset="1.0" />
+                android:centerX="62"
+                android:centerY="46"
+                android:gradientRadius="50">
+                <item android:color="#339CCBFB" android:offset="0.0" />
+                <item android:color="#1A9CCBFB" android:offset="0.55" />
+                <item android:color="#009CCBFB" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>

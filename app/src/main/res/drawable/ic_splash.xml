@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Splash mark. Same orbit-and-bead geometry as the launcher icon, so the icon
-  the user tapped is still on screen while the app starts.
+  Splash mark. Same orbit-and-bead geometry as the launcher icon, and now the
+  same halo, so the icon the user tapped is still on screen while the app
+  starts.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -16,22 +17,34 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.72"
-        android:scaleY="0.72">
+        android:scaleX="0.66"
+        android:scaleY="0.66">
 
-    <!--
-      A single mid-blue rather than the launcher gradient: this sits on
-      @color/splash_background, which is near-white in light mode and near-black
-      in dark, and this tone is the one that holds contrast against both.
-    -->
-    <path
-        android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
-        android:strokeColor="#FF4E8CC0"
-        android:strokeWidth="12"
-        android:strokeLineCap="round" />
+        <!--
+          A single mid-blue throughout rather than the launcher's gradient:
+          this sits on @color/splash_background, which is near-white in light
+          mode and near-black in dark, and this tone is the one that holds
+          contrast against both. The halo follows it at low alpha, which works
+          on either ground for the same reason.
+        -->
+        <path
+            android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+            android:strokeColor="#334E8CC0"
+            android:strokeWidth="22"
+            android:strokeLineCap="round" />
 
-    <path
-        android:fillColor="#FF4E8CC0"
-        android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
+        <path
+            android:fillColor="#404E8CC0"
+            android:pathData="M73.09,20.91 a14,14 0 1,0 0,28 a14,14 0 1,0 0,-28 Z" />
+
+        <path
+            android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+            android:strokeColor="#FF4E8CC0"
+            android:strokeWidth="12"
+            android:strokeLineCap="round" />
+
+        <path
+            android:fillColor="#FF4E8CC0"
+            android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z" />
     </group>
 </vector>

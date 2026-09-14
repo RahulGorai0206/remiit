@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Adaptive-icon foreground: an open orbit with a bead resting in its gap.
+  Adaptive-icon foreground: an open orbit with a bead resting in its gap, lit.
 
-  The mark is the app's idea in one glyph. The ring is the condition being
-  watched — a loop that runs continuously — and the bead is the moment it
-  fires: the point where the loop's end meets its beginning. It is also the
-  app's motion language drawn still, every animation being a path with a
-  connected start and end.
+  The mark is unchanged and deliberately so — it is the app's idea in one
+  glyph. The ring is the condition being watched, a loop that runs
+  continuously, and the bead is the moment it fires: the point where the loop's
+  end meets its beginning. Deliberately not a bell or a clock, which is what
+  every reminder app draws and which are indistinguishable from each other at
+  48dp.
 
-  Deliberately not a bell or a clock. Those are what every reminder app draws,
-  and at 48dp they are indistinguishable from each other.
+  What is new is the lighting. Each shape is drawn twice: a wide, low-alpha
+  pass underneath is the halo, and the narrow bright one on top is the mark
+  itself. That pairing is what makes it read as emitting rather than as a glyph
+  sitting on a surface — and it is what the bead needs to look like the moment
+  of firing rather than a full stop.
 
   Geometry: centre (54,54), orbit radius 27 with a 12-wide round-capped stroke,
   gap of 84° centred on the upper-right diagonal, bead radius 9 seated at the
@@ -23,56 +27,67 @@
     android:viewportHeight="108">
 
     <!--
-      The mask reveals the middle 72dp of this 108dp canvas, and the artwork is
-      authored to span exactly that. Scaling it about the centre pulls the mark
-      inside the rim: at 0.72 the outermost point sits ~28% of the radius clear
-      of the mask edge, which is the margin an app icon is expected to keep so
-      it does not read as cropped next to its neighbours on a home screen.
+      The mask reveals the middle 72dp of this 108dp canvas. 0.72 was the right
+      scale for the bare mark; the halo extends it, and at 0.66 the halo's
+      outermost point — the far edge of the bead's glow — sits inside the rim
+      with the margin an app icon is expected to keep.
     -->
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.72"
-        android:scaleY="0.72">
+        android:scaleX="0.66"
+        android:scaleY="0.66">
 
-    <!--
-      The orbit. Drawn as a stroke rather than a filled ring so the round caps
-      come for free — they are what make the two ends read as terminals of one
-      path instead of a circle that happens to be broken.
-    -->
-    <path
-        android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
-        android:strokeWidth="12"
-        android:strokeLineCap="round">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:type="linear"
-                android:startX="27"
-                android:startY="81"
-                android:endX="81"
-                android:endY="27">
-                <item android:color="#FFD3E5F8" android:offset="0.0" />
-                <item android:color="#FFFFFFFF" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        <!-- Orbit halo. -->
+        <path
+            android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+            android:strokeColor="#33CFE5FF"
+            android:strokeWidth="22"
+            android:strokeLineCap="round" />
 
-    <!--
-      The bead. Sits at the orbit's radius but is wider than its stroke, so it
-      carries more weight than the ring and the eye lands on it first.
-    -->
-    <path android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:type="linear"
-                android:startX="73.09"
-                android:startY="25.91"
-                android:endX="73.09"
-                android:endY="43.91">
-                <item android:color="#FFFFFFFF" android:offset="0.0" />
-                <item android:color="#FFDCEAF9" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+        <!-- Bead halo. Wider than the orbit's, so the eye still lands here first. -->
+        <path
+            android:fillColor="#40CFE5FF"
+            android:pathData="M73.09,20.91 a14,14 0 1,0 0,28 a14,14 0 1,0 0,-28 Z" />
+
+        <!--
+          The orbit. Drawn as a stroke rather than a filled ring so the round
+          caps come for free — they are what make the two ends read as
+          terminals of one path instead of a circle that happens to be broken.
+        -->
+        <path
+            android:pathData="M80.96,52.59 A27,27 0 1 1 55.41,27.04"
+            android:strokeWidth="12"
+            android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="27"
+                    android:startY="81"
+                    android:endX="81"
+                    android:endY="27">
+                    <item android:color="#FFA9CFF4" android:offset="0.0" />
+                    <item android:color="#FFFFFFFF" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!--
+          The bead. Sits at the orbit's radius but is wider than its stroke, so
+          it carries more weight than the ring.
+        -->
+        <path android:pathData="M73.09,25.91 a9,9 0 1,0 0,18 a9,9 0 1,0 0,-18 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="73.09"
+                    android:startY="25.91"
+                    android:endX="73.09"
+                    android:endY="43.91">
+                    <item android:color="#FFFFFFFF" android:offset="0.0" />
+                    <item android:color="#FFDCEAF9" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
 </vector>
