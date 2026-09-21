@@ -1,5 +1,6 @@
 package com.rahulgorai.remiit.ui.automation
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rahulgorai.remiit.data.model.Automation
@@ -12,6 +13,9 @@ import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.data.repo.AutomationRepository
 import com.rahulgorai.remiit.engine.TriggerCoordinator
+import com.rahulgorai.remiit.trigger.wifi.WifiNetworks
+import com.rahulgorai.remiit.trigger.wifi.WifiScanState
+import com.rahulgorai.remiit.trigger.wifi.scan
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,6 +84,9 @@ class AutomationEditorViewModel(
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private val _wifiScan = MutableStateFlow(WifiScanState())
+    val wifiScan: StateFlow<WifiScanState> = _wifiScan.asStateFlow()
 
     val knownSsids = settings.knownSsids
 
@@ -171,6 +178,18 @@ class AutomationEditorViewModel(
             repository.delete(draft.id)
             coordinator.onAutomationChanged()
             onDeleted()
+        }
+    }
+
+    /**
+     * Fills the network picker, exactly as the rule builder does.
+     * See [com.rahulgorai.remiit.trigger.wifi.scan].
+     */
+    fun scanNearbyWifi(context: Context) {
+        if (_wifiScan.value.scanning) return
+        val appContext = context.applicationContext
+        viewModelScope.launch {
+            WifiNetworks.scan(appContext).collect { _wifiScan.value = it }
         }
     }
 

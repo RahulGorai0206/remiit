@@ -47,12 +47,14 @@ import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.model.label
 import com.rahulgorai.remiit.trigger.bluetooth.BluetoothDevices
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
+import com.rahulgorai.remiit.trigger.wifi.WifiScanState
 import com.rahulgorai.remiit.ui.builder.GateWarning
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.Option
 import com.rahulgorai.remiit.ui.components.OptionRow
 import com.rahulgorai.remiit.ui.components.PrimaryButton
 import com.rahulgorai.remiit.ui.components.SecondaryButton
+import com.rahulgorai.remiit.ui.components.WifiNetworkPicker
 import com.rahulgorai.remiit.util.Permissions
 import com.rahulgorai.remiit.util.openSettings
 import kotlinx.coroutines.tasks.await
@@ -81,6 +83,8 @@ fun AutomationEditorScreen(
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val knownSsids by viewModel.knownSsids.collectAsStateWithLifecycle(emptySet())
+    val wifiScan by viewModel.wifiScan.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     val isEdit = !automationId.isNullOrBlank()
     val heading = when {
@@ -173,6 +177,8 @@ fun AutomationEditorScreen(
                     is AutomationTrigger.Wifi -> WifiPicker(
                         trigger = trigger,
                         knownSsids = knownSsids,
+                        scan = wifiScan,
+                        onScan = { viewModel.scanNearbyWifi(context) },
                         onChange = viewModel::setTrigger,
                     )
 
@@ -247,39 +253,25 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
 }
 
 /**
- * Typed, not scanned.
- *
- * Scanning for networks needs location permission and returns whatever is in
- * range at that second, which is rarely the network the automation is about —
- * writing "silent at the office" is something people do at home. The remembered
- * list is the useful half: the networks this app has already been told about.
+ * The same network picker the rule builder uses — in-range networks, the one
+ * you are on, and the ones you have named before — rather than a text field
+ * and nothing else.
  */
 @Composable
 private fun WifiPicker(
     trigger: AutomationTrigger.Wifi,
     knownSsids: Set<String>,
+    scan: WifiScanState,
+    onScan: () -> Unit,
     onChange: (AutomationTrigger) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = trigger.ssid,
-            onValueChange = { onChange(trigger.copy(ssid = it)) },
-            label = { Text("Network name (SSID)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        val suggestions = knownSsids.filter { it.isNotBlank() && it != trigger.ssid }
-        if (suggestions.isNotEmpty()) {
-            Spacer(Modifier.height(12.dp))
-            OptionRow(
-                title = "Networks you have used before",
-                options = suggestions.map { Option(it, it) },
-                selected = trigger.ssid,
-                onSelect = { onChange(trigger.copy(ssid = it)) },
-            )
-        }
-    }
+    WifiNetworkPicker(
+        ssid = trigger.ssid,
+        onSsidChange = { onChange(trigger.copy(ssid = it)) },
+        scan = scan,
+        knownSsids = knownSsids,
+        onScan = onScan,
+    )
 }
 
 @Composable

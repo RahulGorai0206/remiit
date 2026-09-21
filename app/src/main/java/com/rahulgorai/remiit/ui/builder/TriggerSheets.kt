@@ -50,9 +50,11 @@ import com.rahulgorai.remiit.data.model.Recurrence
 import com.rahulgorai.remiit.data.model.Trigger
 import com.rahulgorai.remiit.data.model.WifiEvent
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
+import com.rahulgorai.remiit.trigger.wifi.WifiScanState
 import com.rahulgorai.remiit.trigger.wifi.WifiNetworks
 import androidx.compose.foundation.Image
 import com.rahulgorai.remiit.ui.components.PrimaryButton
+import com.rahulgorai.remiit.ui.components.WifiNetworkPicker
 import com.rahulgorai.remiit.ui.components.rememberAppIdentity
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.TertiaryButton
@@ -237,130 +239,19 @@ fun WifiTriggerEditor(
     onScan: () -> Unit,
     onConfirm: (Trigger.Wifi) -> Unit,
 ) {
-    val context = LocalContext.current
     var ssid by remember { mutableStateOf(initial?.ssid.orEmpty()) }
     var event by remember { mutableStateOf(initial?.event ?: WifiEvent.CONNECTED) }
-
-    val currentSsid = remember { WifiNetworks.currentSsid(context) }
-    val canList = remember(scan.canList) { WifiNetworks.canListNetworks(context) }
-
-    // Requested here as well as on the permissions screen, because this is the
-    // one moment the user can see what it buys them. Location is genuinely what
-    // Wi-Fi scanning needs: NEARBY_WIFI_DEVICES covers Aware, P2P, RTT and
-    // hotspot, and is not accepted by startScan or getScanResults.
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants -> if (grants.values.any { it }) onScan() }
-
-    // Scan on open: an empty picker that needs a button press first reads as
-    // broken rather than as merely idle.
-    LaunchedEffect(Unit) { if (canList) onScan() }
-
-    val choices = remember(currentSsid, knownSsids, scan.ssids) {
-        (listOfNotNull(currentSsid) + scan.ssids + knownSsids).distinct()
-    }
 
     Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
         Text("Wi-Fi network", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = ssid,
-            onValueChange = { ssid = it },
-            label = { Text("Network name (SSID)") },
-            supportingText = {
-                if (!Permissions.hasFineLocation(context)) {
-                    // Not a warning about the picker — a warning that the rule
-                    // will never fire, which is far from obvious.
-                    Text("Location permission is required to detect Wi-Fi networks.")
-                } else if (!Permissions.areLocationServicesEnabled(context)) {
-                    Text("Turn location services on, or Wi-Fi rules cannot match.")
-                }
-            },
-            isError = ssid.isBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Networks in range", style = MaterialTheme.typography.titleMedium)
-            TertiaryButton(
-                text = if (scan.scanning) "Scanning…" else "Rescan",
-                onClick = onScan,
-                enabled = canList && !scan.scanning,
-            )
-        }
-
-        if (scan.scanning) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-        }
-
-        if (choices.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                choices.forEach { candidate ->
-                    FilterChip(
-                        selected = ssid == candidate,
-                        onClick = { ssid = candidate },
-                        label = { Text(candidate, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        border = RemiitBorders.interactive(),
-                    )
-                }
-            }
-        }
-
-        val locationMissing = !Permissions.hasFineLocation(context)
-        val hint = when {
-            locationMissing -> "Listing networks needs location permission — the same one " +
-                "the rule itself needs to read a network name."
-            !Permissions.areLocationServicesEnabled(context) ->
-                "Turn location services on to list networks."
-            !scan.wifiEnabled -> "Wi-Fi is off, so no networks can be listed. " +
-                "You can still type a name."
-            scan.scanned && choices.isEmpty() -> "No networks found. Android rate-limits " +
-                "scans to four every two minutes, so try again shortly."
-            else -> null
-        }
-        if (hint != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(4.dp))
-            if (locationMissing) {
-                SecondaryButton(
-                    text = "Grant location",
-                    onClick = {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                            )
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else if (!Permissions.areLocationServicesEnabled(context)) {
-                SecondaryButton(
-                    text = "Open location settings",
-                    onClick = { context.openSettings(Permissions.locationSettings()) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Android does not let apps read your phone's saved networks, so this " +
-                "lists what is in range plus networks you have used in a rule before.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        WifiNetworkPicker(
+            ssid = ssid,
+            onSsidChange = { ssid = it },
+            scan = scan,
+            knownSsids = knownSsids,
+            onScan = onScan,
         )
 
         Spacer(Modifier.height(16.dp))

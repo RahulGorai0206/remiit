@@ -13,7 +13,8 @@ import com.rahulgorai.remiit.data.repo.RuleRepository
 import com.rahulgorai.remiit.engine.RuleEngine
 import com.rahulgorai.remiit.engine.TriggerCoordinator
 import com.rahulgorai.remiit.trigger.wifi.WifiNetworks
-import kotlinx.coroutines.Dispatchers
+import com.rahulgorai.remiit.trigger.wifi.WifiScanState
+import com.rahulgorai.remiit.trigger.wifi.scan
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -175,39 +176,12 @@ class RuleBuilderViewModel(
 
     fun newTriggerId(): String = UUID.randomUUID().toString()
 
-    /**
-     * Fills the network picker.
-     *
-     * Cached results are published first so the list is never empty while a scan
-     * runs — the platform scans on its own schedule, so there is usually
-     * something to show immediately.
-     */
+    /** Fills the network picker. See [com.rahulgorai.remiit.trigger.wifi.scan]. */
     fun scanNearbyWifi(context: Context) {
         if (_wifiScan.value.scanning) return
-
         val appContext = context.applicationContext
-        viewModelScope.launch(Dispatchers.IO) {
-            _wifiScan.update {
-                it.copy(scanning = true, ssids = WifiNetworks.cachedSsids(appContext))
-            }
-            val ssids = WifiNetworks.refreshSsids(appContext)
-            _wifiScan.value = WifiScanState(
-                ssids = ssids,
-                scanning = false,
-                scanned = true,
-                wifiEnabled = WifiNetworks.isWifiEnabled(appContext),
-                canList = WifiNetworks.canListNetworks(appContext),
-            )
+        viewModelScope.launch {
+            WifiNetworks.scan(appContext).collect { _wifiScan.value = it }
         }
     }
 }
-
-/** What the network picker knows about the airwaves right now. */
-data class WifiScanState(
-    val ssids: List<String> = emptyList(),
-    val scanning: Boolean = false,
-    /** False until a scan has completed, so "nothing found" is not shown too early. */
-    val scanned: Boolean = false,
-    val wifiEnabled: Boolean = true,
-    val canList: Boolean = true,
-)
