@@ -39,8 +39,10 @@ migration, and a rule can be moved or restored as a single value.
 a bounded window, which is what makes "on office Wi-Fi **and** after 3pm" work.
 
 **Delivery** — notification, full-screen banner, or alarm (looping tone on the
-alarm stream, so it ignores media volume). Each carries Complete / Not done, and
-every firing and response is logged.
+alarm stream, so it ignores media volume). Alarm rules pick their own tone
+through the system ringtone picker; the other two are notifications, whose sound
+belongs to the channel and is set in system settings. Each carries Complete /
+Not done, and every firing and response is logged.
 
 **Constraints** — cooldown, max per day, quiet hours, active days, validity
 range. These are why "remind me on any app launch" is usable rather than a

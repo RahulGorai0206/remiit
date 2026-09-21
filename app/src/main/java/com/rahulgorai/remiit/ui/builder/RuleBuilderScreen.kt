@@ -73,6 +73,7 @@ import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.ui.components.BorderedIconButton
 import com.rahulgorai.remiit.ui.components.ConfirmedButton
 import com.rahulgorai.remiit.ui.components.PrimaryButton
+import com.rahulgorai.remiit.ui.components.RingtoneRow
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.DayToggles
 import com.rahulgorai.remiit.ui.components.Option
@@ -329,6 +330,17 @@ fun RuleBuilderScreen(
                         },
                     )
                     if (draft.delivery.mode == DeliveryMode.ALARM) {
+                        // Alarm only. The other two modes are notifications, and
+                        // a notification's sound comes from its channel — fixed
+                        // at creation and changeable only in system settings —
+                        // so a per-rule tone there would be a control that does
+                        // nothing.
+                        RingtoneRow(
+                            uri = draft.delivery.soundUri,
+                            onPick = { picked ->
+                                viewModel.setDelivery(draft.delivery.copy(soundUri = picked))
+                            },
+                        )
                         SwitchRow(
                             title = "Fade in volume",
                             subtitle = "Start quiet and ramp up",

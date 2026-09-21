@@ -35,32 +35,54 @@ object AlarmSoundPlayer {
 
             if (config.vibrate) startVibration(context, config)
 
-            val uri = config.soundUri?.let(Uri::parse)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: return
+            val default = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val chosen = config.soundUri?.let(Uri::parse) ?: default ?: return
 
-            try {
-                player = MediaPlayer().apply {
-                    // USAGE_ALARM routes to the alarm stream, so the reminder is
-                    // audible even with media and ringtone volume at zero.
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    setDataSource(context, uri)
-                    isLooping = true
-                    if (config.escalateVolume) setVolume(INITIAL_VOLUME, INITIAL_VOLUME)
-                    prepare()
-                    start()
-                }
-                if (config.escalateVolume) escalate(context)
-            } catch (e: Exception) {
-                Log.e(TAG, "Could not start alarm sound", e)
+            // The chosen tone first, then the device default.
+            //
+            // A tone picked from the media store can stop being playable later:
+            // the file is deleted, the SD card comes out, or reading it needs
+            // READ_MEDIA_AUDIO that this app does not hold. Every one of those
+            // throws here — and the failure mode that matters is that an alarm
+            // which does not sound is worse than an alarm with the wrong tone.
+            // So a failure falls back rather than giving up.
+            val played = playLocked(context, chosen, config) ||
+                (chosen != default && default != null && playLocked(context, default, config))
+
+            if (!played) {
+                Log.e(TAG, "No alarm tone could be played")
                 stopLocked()
+            } else if (config.escalateVolume) {
+                escalate(context)
             }
         }
+    }
+
+    /** Starts one candidate tone. Returns false if it could not be played. */
+    private fun playLocked(context: Context, uri: Uri, config: DeliveryConfig): Boolean = try {
+        player = MediaPlayer().apply {
+            // USAGE_ALARM routes to the alarm stream, so the reminder is
+            // audible even with media and ringtone volume at zero.
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            setDataSource(context, uri)
+            isLooping = true
+            if (config.escalateVolume) setVolume(INITIAL_VOLUME, INITIAL_VOLUME)
+            prepare()
+            start()
+        }
+        true
+    } catch (e: Exception) {
+        Log.e(TAG, "Could not play $uri", e)
+        // Release the half-built player before the next attempt, or the retry
+        // leaks it and `player` ends up pointing at something never started.
+        player?.let { runCatching { it.release() } }
+        player = null
+        false
     }
 
     fun stop() = synchronized(lock) { stopLocked() }
