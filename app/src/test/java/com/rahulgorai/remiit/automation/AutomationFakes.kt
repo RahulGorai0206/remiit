@@ -21,6 +21,8 @@ class FakeAutomationDao : AutomationDao {
         automations.map { list -> list.filter { it.isEnabled } }
 
     override suspend fun getEnabled(): List<Automation> = automations.value.filter { it.isEnabled }
+    override suspend fun getAll(): List<Automation> =
+        automations.value.sortedBy(Automation::createdAtEpochMillis)
     override suspend fun getById(id: String): Automation? = automations.value.find { it.id == id }
 
     override suspend fun upsert(automation: Automation) {

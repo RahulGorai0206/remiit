@@ -1,5 +1,7 @@
 package com.rahulgorai.remiit.ui.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,12 +33,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import com.rahulgorai.remiit.BuildConfig
+import com.rahulgorai.remiit.data.backup.BackupFiles
 import com.rahulgorai.remiit.data.prefs.ThemeMode
 import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
@@ -66,7 +74,17 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(BackupFiles.MIME_TYPE)
+    ) { uri -> uri?.let { viewModel.exportTo(context, it) } }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { viewModel.importFrom(context, it) } }
 
     // Usage access is granted in system Settings rather than by a dialog, so the
     // status has to be re-read on resume or it shows stale after the trip out.
@@ -158,6 +176,54 @@ fun SettingsScreen(
                     onClick = { context.openSettings(Permissions.usageAccessSettings()) },
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            Section("Backup") {
+                Text(
+                    text = "Save every rule and automation to a file, then import it on " +
+                        "a new phone or after reinstalling. Reminder history is not " +
+                        "included — only the rules themselves.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
+                SecondaryButton(
+                    text = "Export to file",
+                    icon = Icons.Outlined.FileDownload,
+                    onClick = { exportLauncher.launch(viewModel.suggestedFileName()) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                SecondaryButton(
+                    text = "Import from file",
+                    icon = Icons.Outlined.FileUpload,
+                    // Everything, rather than a JSON filter. The same file comes
+                    // back as application/json, text/plain or octet-stream
+                    // depending on which app or cloud provider saved it, and a
+                    // filter that guesses wrong hides the user's own backup from
+                    // them. The contents are validated on import regardless.
+                    onClick = { importLauncher.launch(arrayOf("*/*")) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                if (busy) {
+                    Spacer(Modifier.height(14.dp))
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+
+                backupStatus?.let { status ->
+                    Spacer(Modifier.height(14.dp))
+                    BackupStatusRow(status)
+                    // Cleared on its own so a stale "Backup saved." is not still
+                    // sitting there next time the screen is opened, reading as
+                    // though it describes something that just happened.
+                    LaunchedEffect(status) {
+                        delay(8_000)
+                        viewModel.dismissBackupStatus()
+                    }
+                }
             }
 
             Section("Permissions") {
@@ -258,6 +324,48 @@ private fun NavigationRow(title: String, subtitle: String, onClick: () -> Unit) 
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The outcome of the last export or import.
+ *
+ * Bordered and toned rather than a toast: a failed import needs to stay on
+ * screen long enough to be read, and it is describing the one operation in the
+ * app whose result the user cannot otherwise verify without going and counting
+ * their rules.
+ */
+@Composable
+private fun BackupStatusRow(status: BackupStatus) {
+    val accent = if (status.isError) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.medium)
+            .border(RemiitBorders.CONTAINER_WIDTH, accent, MaterialTheme.shapes.medium)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            imageVector = if (status.isError) {
+                Icons.Filled.ErrorOutline
+            } else {
+                Icons.Filled.CheckCircle
+            },
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = status.message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }

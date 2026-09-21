@@ -29,6 +29,9 @@ class RuleRepository(
 
     suspend fun enabledRules(): List<ReminderRule> = ruleDao.getEnabled()
 
+    /** Every rule, for export. */
+    suspend fun allRules(): List<ReminderRule> = ruleDao.getAll()
+
     suspend fun rule(id: String): ReminderRule? = ruleDao.getById(id)
 
     /** Inserts or updates, filling in id and timestamps. Returns the stored rule. */

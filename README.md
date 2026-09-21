@@ -86,6 +86,29 @@ only route: it polls once a second, so it lags slightly and keeps the foreground
 service alive. It is granted through Settings > Usage access rather than a
 runtime prompt.
 
+## Backup and restore
+
+Settings > Backup writes every rule and automation to a JSON file, and reads one
+back. This is cheap to support because a rule is already a self-contained
+document in the database — the export is the rows themselves, not a parallel
+serialisation that could drift from what is stored.
+
+Written through the Storage Access Framework, so the app holds no storage
+permission: the user picks the destination and the app gets a URI for that one
+file. Import matches on id, so re-importing the same file updates rather than
+duplicates — which is what someone unsure whether the first attempt worked will
+end up doing.
+
+Reminder history is not included; it is a log of what happened on one device,
+not configuration. An automation's last-run record is stripped for the same
+reason, on the way out and on the way back in.
+
+The file carries a `format` marker and a `version`. The marker is load-bearing:
+the decoder ignores unknown keys so that an older build can read a newer file,
+and the consequence is that almost any JSON decodes cleanly into an empty
+backup. A file from a *newer* schema version is refused outright rather than
+half-read, because a partial import that looks successful is worse than none.
+
 ## Why so many permissions
 
 Every one of these fails *silently* — the rule looks saved and enabled and simply

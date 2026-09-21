@@ -24,6 +24,8 @@ class FakeRuleDao : RuleDao {
         rules.map { list -> list.filter { it.isEnabled } }
 
     override suspend fun getEnabled(): List<ReminderRule> = rules.value.filter { it.isEnabled }
+    override suspend fun getAll(): List<ReminderRule> =
+        rules.value.sortedBy(ReminderRule::createdAtEpochMillis)
     override suspend fun getById(id: String): ReminderRule? = rules.value.find { it.id == id }
     override fun observeById(id: String): Flow<ReminderRule?> =
         rules.map { list -> list.find { it.id == id } }

@@ -23,6 +23,10 @@ interface AutomationDao {
     @Query("SELECT * FROM automations WHERE is_enabled = 1")
     suspend fun getEnabled(): List<Automation>
 
+    /** Every automation, enabled or not. A backup carries paused ones too. */
+    @Query("SELECT * FROM automations ORDER BY created_at ASC")
+    suspend fun getAll(): List<Automation>
+
     @Query("SELECT * FROM automations WHERE id = :id")
     suspend fun getById(id: String): Automation?
 

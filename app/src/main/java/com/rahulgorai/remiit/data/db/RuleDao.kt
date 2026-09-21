@@ -24,6 +24,10 @@ interface RuleDao {
     @Query("SELECT * FROM reminder_rules WHERE is_enabled = 1")
     suspend fun getEnabled(): List<ReminderRule>
 
+    /** Every rule, enabled or not. A backup carries paused rules too. */
+    @Query("SELECT * FROM reminder_rules ORDER BY created_at ASC")
+    suspend fun getAll(): List<ReminderRule>
+
     @Query("SELECT * FROM reminder_rules WHERE id = :id")
     suspend fun getById(id: String): ReminderRule?
 

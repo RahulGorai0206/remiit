@@ -5,6 +5,7 @@ import com.rahulgorai.remiit.automation.AutomationEngine
 import com.rahulgorai.remiit.automation.AutomationGeofences
 import com.rahulgorai.remiit.automation.AutomationSink
 import com.rahulgorai.remiit.automation.DeviceControls
+import com.rahulgorai.remiit.data.backup.BackupManager
 import com.rahulgorai.remiit.data.db.RemiitDatabase
 import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.data.repo.AutomationRepository
@@ -62,6 +63,7 @@ val appModule = module {
     single { get<RemiitDatabase>().automationDao() }
     single { RuleRepository(ruleDao = get(), eventDao = get(), clock = get()) }
     single { AutomationRepository(dao = get(), clock = get()) }
+    single { BackupManager(rules = get(), automations = get(), clock = get()) }
     single { SettingsStore(androidContext()) }
 
     single { ReminderDispatcher(context = androidContext(), settings = get()) }
@@ -152,5 +154,11 @@ val appModule = module {
         )
     }
     viewModel { HistoryViewModel(repository = get()) }
-    viewModel { SettingsViewModel(settings = get()) }
+    viewModel {
+        SettingsViewModel(
+            settings = get(),
+            backup = get(),
+            coordinator = get(),
+        )
+    }
 }

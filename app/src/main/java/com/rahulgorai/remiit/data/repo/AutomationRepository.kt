@@ -17,6 +17,9 @@ class AutomationRepository(
 
     suspend fun enabled(): List<Automation> = dao.getEnabled()
 
+    /** Every automation, for export. */
+    suspend fun all(): List<Automation> = dao.getAll()
+
     suspend fun automation(id: String): Automation? = dao.getById(id)
 
     /** Inserts or updates, filling in id and timestamps. Returns the stored row. */
