@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -32,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -43,6 +46,7 @@ import com.rahulgorai.remiit.data.model.AutomationEdge
 import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.AutomationTriggerKind
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.model.label
 import com.rahulgorai.remiit.trigger.bluetooth.BluetoothDevices
@@ -57,6 +61,7 @@ import com.rahulgorai.remiit.ui.components.SecondaryButton
 import com.rahulgorai.remiit.ui.components.WifiNetworkPicker
 import com.rahulgorai.remiit.util.Permissions
 import com.rahulgorai.remiit.util.openSettings
+import kotlin.math.roundToInt
 import kotlinx.coroutines.tasks.await
 import org.koin.androidx.compose.koinViewModel
 
@@ -209,6 +214,28 @@ fun AutomationEditorScreen(
                     onSelect = viewModel::setSound,
                 )
 
+                Spacer(Modifier.height(22.dp))
+                Text(
+                    text = "Volume",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Levels are stored as a percentage, so they mean the same thing " +
+                        "on a phone with a different volume scale.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                VolumeStream.entries.forEach { stream ->
+                    VolumeRow(
+                        stream = stream,
+                        percent = draft.actions.volumes[stream],
+                        onChange = { viewModel.setVolume(stream, it) },
+                    )
+                }
+
                 Spacer(Modifier.height(18.dp))
                 OptionRow(
                     title = "Adaptive brightness",
@@ -236,6 +263,71 @@ fun AutomationEditorScreen(
             )
 
             Spacer(Modifier.height(32.dp + padding.calculateBottomPadding() + bottomInset))
+        }
+    }
+}
+
+/**
+ * One volume stream: off by default, a slider once switched on.
+ *
+ * A switch rather than a "no change" position at the bottom of the slider,
+ * because 0% is a real and useful setting — mute the ringer at the cinema —
+ * and a control where the quietest position secretly means "don't touch it"
+ * makes that impossible to express.
+ */
+@Composable
+private fun VolumeRow(
+    stream: VolumeStream,
+    percent: Int?,
+    onChange: (Int?) -> Unit,
+) {
+    val enabled = percent != null
+
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stream.label(),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (stream == VolumeStream.NOTIFICATION) {
+                    Text(
+                        text = "Most phones tie this to Ring",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(
+                text = if (enabled) "$percent%" else "No change",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+            Spacer(Modifier.width(10.dp))
+            Switch(
+                checked = enabled,
+                // Opens at half rather than at 0: an automation that silences
+                // something is a deliberate choice, not the default you get
+                // from flicking a switch.
+                onCheckedChange = { on -> onChange(if (on) 50 else null) },
+            )
+        }
+        if (enabled) {
+            Slider(
+                value = percent.toFloat(),
+                onValueChange = { onChange(it.roundToInt()) },
+                valueRange = 0f..100f,
+                // 5% detents. Volume scales are coarse — some streams have
+                // seven steps in total — so finer control than this would be
+                // an illusion, and round numbers are easier to land on.
+                steps = 19,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

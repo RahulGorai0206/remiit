@@ -64,8 +64,17 @@ ambiguity about what should happen when half of it stops being true.
 | Bluetooth | a paired device connecting or disconnecting | runtime-registered ACL broadcasts |
 | Place | entering or leaving a radius | Play Services geofences, a second set |
 
-**Actions** — ringer (silent / vibrate / ring), Do Not Disturb on or off, and
+**Actions** — ringer (silent / vibrate / ring), Do Not Disturb on or off,
+volume levels for the media, ring, notification, alarm and system streams, and
 adaptive brightness on or off. Each is optional; leaving one alone is the default.
+
+Volumes are stored as a percentage rather than the index Android actually takes.
+Every device has its own scale — ring might top out at 7 where media goes to 25 —
+so an index means nothing away from the phone it was chosen on, and an exported
+automation has to survive landing on a different handset. The conversion happens
+when the action is applied. Explicit levels are applied *after* the ringer mode,
+since "silent" and "ring at 50%" can both be configured and the specific
+instruction should win.
 
 The environment is shared with rules at the source. The Wi-Fi callback is
 registered once and feeds both: rules are matched inside the monitor, which

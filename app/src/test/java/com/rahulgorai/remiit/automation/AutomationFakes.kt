@@ -3,6 +3,7 @@ package com.rahulgorai.remiit.automation
 import com.rahulgorai.remiit.data.db.AutomationDao
 import com.rahulgorai.remiit.data.model.Automation
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.VolumeStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -63,6 +64,9 @@ class FakeDeviceControls(
     val soundCalls = mutableListOf<SoundSetting>()
     val brightnessCalls = mutableListOf<Boolean>()
 
+    /** In call order, so the engine's ordering guarantee can be asserted. */
+    val volumeCalls = mutableListOf<Pair<VolumeStream, Int>>()
+
     override fun hasDndAccess() = dndAccess
     override fun canWriteSystemSettings() = writeSettings
 
@@ -70,6 +74,15 @@ class FakeDeviceControls(
         soundCalls += setting
         return if (setting.requiresDndAccess() && !dndAccess) {
             ActionResult.Failed("Do Not Disturb access not granted")
+        } else {
+            ActionResult.Ok
+        }
+    }
+
+    override fun applyVolume(stream: VolumeStream, percent: Int): ActionResult {
+        volumeCalls += stream to percent
+        return if (volumeRequiresDndAccess(stream, percent) && !dndAccess) {
+            ActionResult.Failed("Muting ${stream.name.lowercase()} needs Do Not Disturb access")
         } else {
             ActionResult.Ok
         }

@@ -5,6 +5,7 @@ import com.rahulgorai.remiit.data.model.AutomationActions
 import com.rahulgorai.remiit.data.model.AutomationEdge
 import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.repo.AutomationRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -150,6 +151,106 @@ class AutomationEngineTest {
 
         assertEquals(listOf(SoundSetting.VIBRATE), controls.soundCalls)
         assertEquals(listOf(false), controls.brightnessCalls)
+    }
+
+    @Test
+    fun `volumes are applied`() = runTest {
+        dao.upsert(
+            automation(
+                trigger = AutomationTrigger.Wifi("Office", AutomationEdge.ENTER),
+                actions = AutomationActions(
+                    volumes = mapOf(VolumeStream.RING to 20, VolumeStream.ALARM to 100),
+                ),
+            )
+        )
+        val controls = FakeDeviceControls()
+
+        engine(controls).onSignal(AutomationSignal.Wifi("Office", AutomationEdge.ENTER))
+
+        assertEquals(
+            listOf(VolumeStream.RING to 20, VolumeStream.ALARM to 100),
+            controls.volumeCalls,
+        )
+    }
+
+    /**
+     * Silent and "ring 50%" contradict each other, and someone can configure
+     * both. An explicit level is the more specific instruction, so it runs
+     * last and wins — and it does so in a fixed order rather than whichever
+     * the map happened to iterate first.
+     */
+    @Test
+    fun `an explicit volume is applied after the ringer mode`() = runTest {
+        dao.upsert(
+            automation(
+                trigger = AutomationTrigger.Wifi("Office", AutomationEdge.ENTER),
+                actions = AutomationActions(
+                    sound = SoundSetting.SILENT,
+                    volumes = mapOf(VolumeStream.SYSTEM to 10, VolumeStream.RING to 50),
+                ),
+            )
+        )
+        val controls = FakeDeviceControls()
+
+        engine(controls).onSignal(AutomationSignal.Wifi("Office", AutomationEdge.ENTER))
+
+        assertEquals(listOf(SoundSetting.SILENT), controls.soundCalls)
+        // Declaration order, not insertion order: RING is declared before SYSTEM.
+        assertEquals(
+            listOf(VolumeStream.RING to 50, VolumeStream.SYSTEM to 10),
+            controls.volumeCalls,
+        )
+    }
+
+    @Test
+    fun `a volume-only automation is valid and runs`() = runTest {
+        dao.upsert(
+            automation(
+                trigger = AutomationTrigger.Wifi("Office", AutomationEdge.ENTER),
+                actions = AutomationActions(volumes = mapOf(VolumeStream.ALARM to 80)),
+            )
+        )
+        val controls = FakeDeviceControls()
+
+        engine(controls).onSignal(AutomationSignal.Wifi("Office", AutomationEdge.ENTER))
+
+        assertEquals(listOf(VolumeStream.ALARM to 80), controls.volumeCalls)
+        assertEquals("Alarm 80%", dao.getById("a1")!!.lastResult)
+    }
+
+    @Test
+    fun `muting the ringer without Do Not Disturb access is recorded as a failure`() = runTest {
+        dao.upsert(
+            automation(
+                trigger = AutomationTrigger.Wifi("Office", AutomationEdge.ENTER),
+                actions = AutomationActions(volumes = mapOf(VolumeStream.RING to 0)),
+            )
+        )
+
+        engine(FakeDeviceControls(dndAccess = false)).onSignal(
+            AutomationSignal.Wifi("Office", AutomationEdge.ENTER)
+        )
+
+        val stored = dao.getById("a1")!!
+        assertTrue(!stored.lastRunSucceeded)
+        assertTrue("ring" in stored.lastResult.lowercase())
+    }
+
+    /** Alarms sit outside the ringer, so muting one needs no extra grant. */
+    @Test
+    fun `muting the alarm stream does not need Do Not Disturb access`() = runTest {
+        dao.upsert(
+            automation(
+                trigger = AutomationTrigger.Wifi("Office", AutomationEdge.ENTER),
+                actions = AutomationActions(volumes = mapOf(VolumeStream.ALARM to 0)),
+            )
+        )
+
+        engine(FakeDeviceControls(dndAccess = false)).onSignal(
+            AutomationSignal.Wifi("Office", AutomationEdge.ENTER)
+        )
+
+        assertTrue(dao.getById("a1")!!.lastRunSucceeded)
     }
 
     @Test

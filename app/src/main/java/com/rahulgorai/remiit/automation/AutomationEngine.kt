@@ -3,6 +3,7 @@ package com.rahulgorai.remiit.automation
 import android.util.Log
 import com.rahulgorai.remiit.data.model.Automation
 import com.rahulgorai.remiit.data.model.AutomationTrigger
+import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.model.summary
 import com.rahulgorai.remiit.data.repo.AutomationRepository
 import kotlinx.coroutines.sync.Mutex
@@ -56,6 +57,19 @@ class AutomationEngine(
         val failures = buildList {
             actions.sound?.let { setting ->
                 (controls.applySound(setting) as? ActionResult.Failed)?.let { add(it.reason) }
+            }
+            // Volumes after the ringer mode, deliberately. The two can
+            // contradict each other — silent plus "ring 50%" is a thing someone
+            // can configure — and an explicit level is the more specific
+            // instruction of the two, so it is the one that should win. Fixed
+            // order also means the result is the same every time rather than
+            // depending on which ran first.
+            VolumeStream.entries.forEach { stream ->
+                actions.volumes[stream]?.let { percent ->
+                    (controls.applyVolume(stream, percent) as? ActionResult.Failed)?.let {
+                        add(it.reason)
+                    }
+                }
             }
             actions.autoBrightness?.let { enabled ->
                 (controls.applyAutoBrightness(enabled) as? ActionResult.Failed)?.let {

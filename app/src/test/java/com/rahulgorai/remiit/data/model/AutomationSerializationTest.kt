@@ -84,6 +84,34 @@ class AutomationSerializationTest {
         assertEquals(AutomationActions(sound = SoundSetting.SILENT), decoded)
     }
 
+    /** Volume levels live in the same JSON column, keyed by the stream name. */
+    @Test
+    fun `volume levels round trip and are keyed by stream name`() {
+        // Built from the enum rather than listed, so a stream added later is
+        // covered here automatically instead of quietly escaping the check.
+        val actions = AutomationActions(
+            volumes = VolumeStream.entries.withIndex().associate { (i, stream) ->
+                stream to i * 20
+            }
+        )
+        val json = RemiitJson.encodeToString(actions)
+        VolumeStream.entries.forEach { assertTrue("missing ${it.name}", it.name in json) }
+        assertEquals(actions, RemiitJson.decodeFromString<AutomationActions>(json))
+    }
+
+    /**
+     * Volumes were added after the first automations shipped, so a row written
+     * by the earlier build has no `volumes` key at all and must still load.
+     */
+    @Test
+    fun `actions written before volumes existed still decode`() {
+        val decoded = RemiitJson.decodeFromString<AutomationActions>(
+            """{"sound":"SILENT","autoBrightness":false}"""
+        )
+        assertEquals(SoundSetting.SILENT, decoded.sound)
+        assertTrue(decoded.volumes.isEmpty())
+    }
+
     @Test
     fun `a whole automation round trips`() {
         val automation = Automation(

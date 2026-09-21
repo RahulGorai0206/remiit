@@ -160,9 +160,62 @@ data class AutomationActions(
      * True turns adaptive brightness on, false off, null leaves it untouched.
      */
     val autoBrightness: Boolean? = null,
+
+    /**
+     * Volume levels to set, as a percentage of each stream's range. A stream
+     * absent from the map is left alone.
+     *
+     * Percentages, not the raw indices Android actually takes. Every device has
+     * its own scale — ring might go to 7 while media goes to 25, and an OEM is
+     * free to pick anything — so an index means nothing away from the phone it
+     * was chosen on. Storing "60%" is what lets an exported automation restore
+     * onto a different handset and still mean what it meant. The conversion to
+     * an index happens at the moment it is applied.
+     */
+    val volumes: Map<VolumeStream, Int> = emptyMap(),
 ) {
-    val isEmpty: Boolean get() = sound == null && autoBrightness == null
+    val isEmpty: Boolean
+        get() = sound == null && autoBrightness == null && volumes.isEmpty()
+
     val isNotEmpty: Boolean get() = !isEmpty
+}
+
+/**
+ * A volume slider the phone has.
+ *
+ * Named after Android's audio streams rather than the labels in Settings,
+ * because that is what they map to and the two do not line up neatly — in
+ * particular [SYSTEM] is touch tones and UI feedback, which is a different
+ * thing from [MEDIA].
+ *
+ * Declaration order is load-bearing in three places: it is the order the rows
+ * appear in the editor, the order the changes are applied, and the order the
+ * summary reads. [MEDIA] leads because it is both the one people reach for
+ * most and the one at the top of Android's own volume panel.
+ */
+@Serializable
+enum class VolumeStream {
+    /** Music, video and games. The slider Android shows first. */
+    MEDIA,
+
+    /** Incoming calls. On most devices [NOTIFICATION] follows this one. */
+    RING,
+
+    /**
+     * Notification sounds.
+     *
+     * Android links this to [RING] on the large majority of devices, so setting
+     * one usually moves the other. That is the platform's behaviour and not
+     * something an app can opt out of; both are offered because the handful of
+     * devices that do separate them are real.
+     */
+    NOTIFICATION,
+
+    /** Alarms, including Remiit's own alarm-mode reminders. */
+    ALARM,
+
+    /** Touch tones, keypad clicks and other UI feedback. */
+    SYSTEM,
 }
 
 /**

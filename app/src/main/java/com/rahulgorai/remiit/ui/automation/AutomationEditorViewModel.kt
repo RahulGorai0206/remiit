@@ -9,6 +9,7 @@ import com.rahulgorai.remiit.data.model.AutomationEdge
 import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.AutomationTriggerKind
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.prefs.SettingsStore
 import com.rahulgorai.remiit.data.repo.AutomationRepository
@@ -149,6 +150,13 @@ class AutomationEditorViewModel(
     /** Null clears the brightness action. */
     fun setAutoBrightness(enabled: Boolean?) =
         _draft.update { it.copy(actions = it.actions.copy(autoBrightness = enabled)) }
+
+    /** A percentage sets that stream; null removes it, leaving the stream alone. */
+    fun setVolume(stream: VolumeStream, percent: Int?) = _draft.update { draft ->
+        val volumes = draft.actions.volumes.toMutableMap()
+        if (percent == null) volumes.remove(stream) else volumes[stream] = percent.coerceIn(0, 100)
+        draft.copy(actions = draft.actions.copy(volumes = volumes))
+    }
 
     fun save(onSaved: () -> Unit) {
         val draft = _draft.value

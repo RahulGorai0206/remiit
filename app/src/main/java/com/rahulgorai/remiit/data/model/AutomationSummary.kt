@@ -49,8 +49,22 @@ fun SoundSetting.label(): String = when (this) {
     SoundSetting.DND_OFF -> "Do Not Disturb off"
 }
 
-/** "Silent · Adaptive brightness off". Empty when the automation does nothing. */
-fun AutomationActions.summary(): String = listOfNotNull(
-    sound?.label(),
-    autoBrightness?.let { if (it) "Adaptive brightness on" else "Adaptive brightness off" },
-).joinToString(" · ")
+fun VolumeStream.label(): String = when (this) {
+    VolumeStream.MEDIA -> "Media"
+    VolumeStream.RING -> "Ring"
+    VolumeStream.NOTIFICATION -> "Notification"
+    VolumeStream.ALARM -> "Alarm"
+    VolumeStream.SYSTEM -> "System"
+}
+
+/** "Silent · Ring 40% · Adaptive brightness off". Empty when nothing is set. */
+fun AutomationActions.summary(): String = buildList {
+    sound?.let { add(it.label()) }
+    // Declaration order rather than map order, so the same actions always read
+    // the same way — the summary is compared against nothing, but it is stored
+    // as the run record and a reordering would look like a change.
+    VolumeStream.entries.forEach { stream ->
+        volumes[stream]?.let { add("${stream.label()} $it%") }
+    }
+    autoBrightness?.let { add(if (it) "Adaptive brightness on" else "Adaptive brightness off") }
+}.joinToString(" · ")

@@ -15,9 +15,11 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.rahulgorai.remiit.automation.requiresDndAccess
+import com.rahulgorai.remiit.automation.volumeRequiresDndAccess
 import com.rahulgorai.remiit.data.model.AutomationActions
 import com.rahulgorai.remiit.data.model.AutomationTriggerKind
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.label
 import com.rahulgorai.remiit.ui.builder.FeatureGate
 import com.rahulgorai.remiit.util.Permissions
 import com.rahulgorai.remiit.util.openSettings
@@ -71,6 +73,20 @@ private fun actionGate(context: Context, actions: AutomationActions): FeatureGat
                     "Changing Do Not Disturb needs Do Not Disturb access. Without it this " +
                         "automation will run and change nothing."
             },
+            actionLabel = "Grant Do Not Disturb access",
+            onFix = { context.openSettings(Permissions.dndAccessSettings()) },
+        )
+    }
+
+    val mutedStream = actions.volumes.entries.firstOrNull { (stream, percent) ->
+        volumeRequiresDndAccess(stream, percent)
+    }?.key
+    if (mutedStream != null && !Permissions.hasDndAccess(context)) {
+        return FeatureGate(
+            satisfied = false,
+            problem = "Setting ${mutedStream.label().lowercase()} volume to 0 silences the " +
+                "phone, which Android counts as a Do Not Disturb change. Without that " +
+                "access this automation will run and change nothing.",
             actionLabel = "Grant Do Not Disturb access",
             onFix = { context.openSettings(Permissions.dndAccessSettings()) },
         )

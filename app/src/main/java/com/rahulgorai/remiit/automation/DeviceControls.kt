@@ -6,6 +6,8 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
 import com.rahulgorai.remiit.data.model.SoundSetting
+import com.rahulgorai.remiit.data.model.VolumeStream
+import kotlin.math.roundToInt
 
 /** The outcome of one settings change, in words the user can act on. */
 sealed interface ActionResult {
@@ -33,7 +35,38 @@ interface DeviceControls {
     fun applySound(setting: SoundSetting): ActionResult
 
     fun applyAutoBrightness(enabled: Boolean): ActionResult
+
+    /** [percent] is 0-100 of the stream's range; see [volumeIndexFor]. */
+    fun applyVolume(stream: VolumeStream, percent: Int): ActionResult
 }
+
+/**
+ * Turns a percentage into the index Android wants.
+ *
+ * Pure, and separate from the class that calls it, because this is the part
+ * worth being sure about: the scales are small (ring often tops out at 7) so
+ * rounding decides whether "60%" lands on 4 or 5, and a stream's floor is not
+ * always zero — some devices refuse to mute the call stream and report a
+ * minimum of 1. Interpolating across [min]..[max] rather than 0..[max] is what
+ * keeps 0% meaning "as quiet as this stream goes" rather than throwing.
+ */
+fun volumeIndexFor(percent: Int, min: Int, max: Int): Int {
+    if (max <= min) return min
+    val clamped = percent.coerceIn(0, 100)
+    return min + ((max - min) * clamped / 100f).roundToInt()
+}
+
+/**
+ * Whether setting this stream to this level needs Do Not Disturb access.
+ *
+ * Silencing the ringer is a Do Not Disturb operation however it is reached, so
+ * taking the ring, notification or system stream to zero hits the same platform
+ * check that [SoundSetting.SILENT] does. Alarms and media are exempt: neither
+ * is part of the ringer, which is exactly why they have their own streams —
+ * muting your music is not a Do Not Disturb decision.
+ */
+fun volumeRequiresDndAccess(stream: VolumeStream, percent: Int): Boolean =
+    percent == 0 && stream != VolumeStream.ALARM && stream != VolumeStream.MEDIA
 
 /**
  * Whether this setting cannot even be attempted without Do Not Disturb access.
@@ -148,6 +181,51 @@ class AndroidDeviceControls(private val context: Context) : DeviceControls {
             ActionResult.Failed("Android refused the brightness change")
         }
     }
+
+    override fun applyVolume(stream: VolumeStream, percent: Int): ActionResult {
+        val manager = audio ?: return ActionResult.Failed("No audio service")
+        if (volumeRequiresDndAccess(stream, percent) && !hasDndAccess()) {
+            return ActionResult.Failed(
+                "Muting ${stream.name.lowercase()} needs Do Not Disturb access"
+            )
+        }
+
+        val androidStream = stream.androidStream
+        return runCatching {
+            val index = volumeIndexFor(
+                percent = percent,
+                min = manager.getStreamMinVolume(androidStream),
+                max = manager.getStreamMaxVolume(androidStream),
+            )
+            // No flags: an automation changing the volume should not throw the
+            // system volume panel over whatever the user is looking at.
+            manager.setStreamVolume(androidStream, index, 0)
+            ActionResult.Ok
+        }.getOrElse {
+            // The realistic failure is the same one the ringer has: the change
+            // would cross the Do Not Disturb boundary — raising a muted stream
+            // while DND is on — which cannot be predicted when the automation
+            // is written, only when it runs.
+            Log.e(TAG, "Could not set ${stream.name} volume", it)
+            if (!hasDndAccess()) {
+                ActionResult.Failed(
+                    "Could not set ${stream.name.lowercase()} volume — needs " +
+                        "Do Not Disturb access"
+                )
+            } else {
+                ActionResult.Failed("Android refused the ${stream.name.lowercase()} volume change")
+            }
+        }
+    }
+
+    private val VolumeStream.androidStream: Int
+        get() = when (this) {
+            VolumeStream.MEDIA -> AudioManager.STREAM_MUSIC
+            VolumeStream.RING -> AudioManager.STREAM_RING
+            VolumeStream.NOTIFICATION -> AudioManager.STREAM_NOTIFICATION
+            VolumeStream.ALARM -> AudioManager.STREAM_ALARM
+            VolumeStream.SYSTEM -> AudioManager.STREAM_SYSTEM
+        }
 
     private companion object {
         const val TAG = "DeviceControls"
