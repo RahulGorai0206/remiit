@@ -3,6 +3,9 @@
 build/
 /*/build/
 
+# Kotlin compiler session and build state
+.kotlin/
+
 # Built artifacts
 *.apk
 *.aab
