@@ -79,7 +79,7 @@ val appModule = module {
     single<TriggerSink> { get<RuleEngine>() }
 
     single<DeviceControls> { AndroidDeviceControls(androidContext()) }
-    single { AutomationEngine(repository = get(), controls = get()) }
+    single { AutomationEngine(repository = get(), controls = get(), clock = get()) }
     // The engine is the only AutomationSink. Bound separately for the same
     // reason as TriggerSink below it: the Wi-Fi monitor, the Bluetooth monitor
     // and the geofence receiver should depend on "somewhere to send a signal",

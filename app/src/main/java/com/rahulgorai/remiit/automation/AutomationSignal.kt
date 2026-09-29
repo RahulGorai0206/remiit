@@ -15,9 +15,11 @@ import com.rahulgorai.remiit.data.model.AutomationEdge
  */
 sealed interface AutomationSignal {
 
-    data class Wifi(val ssid: String, val edge: AutomationEdge) : AutomationSignal
+    val edge: AutomationEdge
 
-    data class Bluetooth(val address: String, val edge: AutomationEdge) : AutomationSignal
+    data class Wifi(val ssid: String, override val edge: AutomationEdge) : AutomationSignal
+
+    data class Bluetooth(val address: String, override val edge: AutomationEdge) : AutomationSignal
 
     /**
      * Already attributed, unlike the other two.
@@ -27,7 +29,10 @@ sealed interface AutomationSignal {
      * the engine sees it. Matching by coordinates instead would mean deciding
      * whether two automations 40 metres apart are the same place.
      */
-    data class Geofence(val automationId: String, val edge: AutomationEdge) : AutomationSignal
+    data class Geofence(
+        val automationId: String,
+        override val edge: AutomationEdge,
+    ) : AutomationSignal
 }
 
 /** Receives [AutomationSignal]s. Implemented by [AutomationEngine]. */

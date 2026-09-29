@@ -49,6 +49,7 @@ import com.rahulgorai.remiit.data.model.SoundSetting
 import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.model.kind
 import com.rahulgorai.remiit.data.model.label
+import com.rahulgorai.remiit.data.model.restoreLabel
 import com.rahulgorai.remiit.trigger.bluetooth.BluetoothDevices
 import com.rahulgorai.remiit.trigger.location.LocationTriggerMonitor
 import com.rahulgorai.remiit.trigger.wifi.WifiScanState
@@ -252,6 +253,13 @@ fun AutomationEditorScreen(
                     Spacer(Modifier.height(16.dp))
                     GateWarning(actionGate)
                 }
+
+                Spacer(Modifier.height(22.dp))
+                RestoreRow(
+                    enabled = draft.restoreOnExit,
+                    whenLabel = draft.trigger.restoreLabel(),
+                    onChange = viewModel::setRestoreOnExit,
+                )
             }
 
             Spacer(Modifier.height(28.dp))
@@ -264,6 +272,40 @@ fun AutomationEditorScreen(
 
             Spacer(Modifier.height(32.dp + padding.calculateBottomPadding() + bottomInset))
         }
+    }
+}
+
+/**
+ * Undo on the way out.
+ *
+ * The subtitle names the moment concretely — "when you disconnect from Office"
+ * rather than "on the opposite edge" — because the whole question the user is
+ * answering is *when does this stop*, and the answer depends on the trigger.
+ * It also says what is restored: the settings as they were, not a fixed
+ * "ring", which is the difference between this and writing a second
+ * automation by hand.
+ */
+@Composable
+private fun RestoreRow(enabled: Boolean, whenLabel: String, onChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = "Put it back afterwards",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Restore these settings to how they were $whenLabel.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(checked = enabled, onCheckedChange = onChange)
     }
 }
 

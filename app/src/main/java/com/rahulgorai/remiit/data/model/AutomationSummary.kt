@@ -68,3 +68,38 @@ fun AutomationActions.summary(): String = buildList {
     }
     autoBrightness?.let { add(if (it) "Adaptive brightness on" else "Adaptive brightness off") }
 }.joinToString(" · ")
+
+/** "Ring · Media 60%" — what a restore put back. */
+fun DeviceSnapshot.summary(): String = buildList {
+    ringer?.let {
+        add(
+            when (it) {
+                RingerMode.SILENT -> "Silent"
+                RingerMode.VIBRATE -> "Vibrate"
+                RingerMode.RING -> "Ring"
+            }
+        )
+    }
+    dndOn?.let { add(if (it) "Do Not Disturb on" else "Do Not Disturb off") }
+    VolumeStream.entries.forEach { stream -> volumes[stream]?.let { add("${stream.label()} $it%") } }
+    autoBrightness?.let { add(if (it) "Adaptive brightness on" else "Adaptive brightness off") }
+}.joinToString(" · ").ifBlank { "nothing" }
+
+/** "Restores when you disconnect" / "…when you leave". */
+fun AutomationTrigger.restoreLabel(): String {
+    val place = when (this) {
+        is AutomationTrigger.Wifi -> ssid.ifBlank { "the network" }
+        is AutomationTrigger.Bluetooth -> deviceName.ifBlank { "the device" }
+        is AutomationTrigger.Location -> label.ifBlank { "the place" }
+    }
+    return when (kind) {
+        AutomationTriggerKind.LOCATION ->
+            if (edge == AutomationEdge.ENTER) "when you leave $place" else "when you arrive at $place"
+        else ->
+            if (edge == AutomationEdge.ENTER) {
+                "when you disconnect from $place"
+            } else {
+                "when you reconnect to $place"
+            }
+    }
+}

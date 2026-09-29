@@ -71,6 +71,39 @@ data class Automation(
      */
     @ColumnInfo(name = "last_run_ok")
     val lastRunSucceeded: Boolean = true,
+
+    /**
+     * Put things back on the opposite edge.
+     *
+     * "Silent when I connect to the office Wi-Fi" is only half of what someone
+     * means — the other half is "and not silent any more once I've left". This
+     * makes that second half automatic, and restores what the phone was
+     * actually set to rather than a fixed value: if the ringer was on vibrate
+     * when you arrived, it goes back to vibrate, not to ring.
+     *
+     * The default value is spelled out for Room as well as Kotlin, because the
+     * column is added by an ALTER TABLE and SQLite will only add a NOT NULL
+     * column that has a default. Room compares defaults when it validates a
+     * migrated schema, so the two have to agree.
+     */
+    @ColumnInfo(name = "restore_on_exit", defaultValue = "0")
+    val restoreOnExit: Boolean = false,
+
+    /**
+     * What the phone was set to before this automation changed it, while that
+     * change is in effect. Null when there is nothing to put back.
+     *
+     * Persisted, because the gap between arriving and leaving is hours and the
+     * process will almost certainly be killed in between. Held in memory, a
+     * snapshot taken at 9am would be gone by 6pm and the phone would stay
+     * silent all evening.
+     *
+     * This is state about one phone, not configuration: it never goes into a
+     * backup, and an edit to the automation leaves it alone — see
+     * [com.rahulgorai.remiit.data.repo.AutomationRepository.save].
+     */
+    @ColumnInfo(name = "saved_state")
+    val savedState: DeviceSnapshot? = null,
 ) {
     /** An automation with nothing to do is saveable but pointless; the editor blocks it. */
     val isValid: Boolean get() = name.isNotBlank() && actions.isNotEmpty
@@ -243,3 +276,51 @@ enum class SoundSetting {
     /** Do Not Disturb off, leaving the ringer as it was. */
     DND_OFF,
 }
+
+/**
+ * The phone's settings as they were just before an automation changed them.
+ *
+ * Only what the automation is about to touch is recorded; everything else is
+ * null or absent. That is not an optimisation. Restoring a setting the
+ * automation never changed would stamp over whatever the user did to it in the
+ * meantime — turn media down in a meeting, and leaving the office would turn it
+ * back up.
+ */
+@Serializable
+data class DeviceSnapshot(
+    val ringer: RingerMode? = null,
+    val dndOn: Boolean? = null,
+    val autoBrightness: Boolean? = null,
+    /** Percent of each stream's range, the same unit [AutomationActions.volumes] uses. */
+    val volumes: Map<VolumeStream, Int> = emptyMap(),
+    val takenAtEpochMillis: Long = 0L,
+) {
+    val isEmpty: Boolean
+        get() = ringer == null && dndOn == null && autoBrightness == null && volumes.isEmpty()
+}
+
+/**
+ * The ringer's three states.
+ *
+ * Its own type rather than [SoundSetting], because a snapshot has to record
+ * what the ringer *is*, and "Do Not Disturb on" is not a ringer state — it is a
+ * separate subsystem that happens to share a menu with it.
+ */
+@Serializable
+enum class RingerMode { SILENT, VIBRATE, RING }
+
+/** The [SoundSetting] that puts the ringer back into this mode. */
+val RingerMode.asSoundSetting: SoundSetting
+    get() = when (this) {
+        RingerMode.SILENT -> SoundSetting.SILENT
+        RingerMode.VIBRATE -> SoundSetting.VIBRATE
+        RingerMode.RING -> SoundSetting.RING
+    }
+
+/** Whether this setting changes the ringer, as opposed to Do Not Disturb. */
+val SoundSetting.changesRinger: Boolean
+    get() = this == SoundSetting.SILENT || this == SoundSetting.VIBRATE || this == SoundSetting.RING
+
+/** Whether this setting changes Do Not Disturb, as opposed to the ringer. */
+val SoundSetting.changesDnd: Boolean
+    get() = this == SoundSetting.DND_ON || this == SoundSetting.DND_OFF

@@ -84,6 +84,18 @@ Play Services keys a fence set by its `PendingIntent`, and both sides re-registe
 their whole set on every change, so they need separate intents and receivers or
 each edit would wipe the other's fences.
 
+**Put it back afterwards** — an automation can restore what it changed on the
+opposite edge: silent on joining the office Wi-Fi, back to whatever the phone was
+on when you leave. It snapshots exactly the settings it is about to change, just
+before changing them, and persists the snapshot on the row — arriving and leaving
+are hours apart and the process will be killed in between. Three details carry
+the weight: a snapshot is only taken if none is held, so a Wi-Fi flap does not
+re-record the already-silenced phone; settings the automation never touched are
+never restored, so a volume changed by hand at the office stays changed; and the
+snapshot is device state, so it survives edits but never goes into a backup.
+Location automations register both geofence transitions when restoring, since a
+fence only reports the transitions it was registered for.
+
 Automations fail more quietly than anything else in the app: the phone simply
 stays loud. Every run is therefore recorded on the row — what changed, or why it
 could not — and shown on the card.

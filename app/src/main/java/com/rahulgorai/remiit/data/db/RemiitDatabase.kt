@@ -13,7 +13,7 @@ import com.rahulgorai.remiit.data.model.ReminderRule
 
 @Database(
     entities = [ReminderRule::class, ReminderEvent::class, Automation::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -55,9 +55,30 @@ abstract class RemiitDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the restore-on-exit flag and the snapshot it restores from.
+         *
+         * Two plain ADD COLUMNs, so no table rebuild and nothing existing is
+         * touched. The flag needs its DEFAULT because SQLite refuses to add a
+         * NOT NULL column without one; the entity declares the same default so
+         * Room's validation sees the column it expects.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `automations` ADD COLUMN `restore_on_exit` " +
+                        "INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL("ALTER TABLE `automations` ADD COLUMN `saved_state` TEXT")
+            }
+        }
+
+        /** Every migration, in order. Internal so the migration test runs these exact ones. */
+        internal val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+
         fun build(context: Context): RemiitDatabase =
             Room.databaseBuilder(context, RemiitDatabase::class.java, NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(*MIGRATIONS)
                 .build()
     }
 }

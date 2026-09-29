@@ -36,6 +36,7 @@ data class AutomationDraft(
     val isEnabled: Boolean = true,
     val trigger: AutomationTrigger = AutomationTrigger.Wifi("", AutomationEdge.ENTER),
     val actions: AutomationActions = AutomationActions(),
+    val restoreOnExit: Boolean = false,
     val createdAtEpochMillis: Long = 0L,
 ) {
     /**
@@ -59,6 +60,7 @@ data class AutomationDraft(
         isEnabled = isEnabled,
         trigger = trigger,
         actions = actions,
+        restoreOnExit = restoreOnExit,
         createdAtEpochMillis = createdAtEpochMillis,
     )
 
@@ -69,6 +71,7 @@ data class AutomationDraft(
             isEnabled = automation.isEnabled,
             trigger = automation.trigger,
             actions = automation.actions,
+            restoreOnExit = automation.restoreOnExit,
             createdAtEpochMillis = automation.createdAtEpochMillis,
         )
     }
@@ -150,6 +153,8 @@ class AutomationEditorViewModel(
     /** Null clears the brightness action. */
     fun setAutoBrightness(enabled: Boolean?) =
         _draft.update { it.copy(actions = it.actions.copy(autoBrightness = enabled)) }
+
+    fun setRestoreOnExit(enabled: Boolean) = _draft.update { it.copy(restoreOnExit = enabled) }
 
     /** A percentage sets that stream; null removes it, leaving the stream alone. */
     fun setVolume(stream: VolumeStream, percent: Int?) = _draft.update { draft ->

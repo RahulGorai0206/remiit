@@ -31,7 +31,7 @@ class BackupManager(
             // configuration. Exporting a run record only to discard it on the
             // way back in would put a misleading "last ran" line in a document
             // people are invited to open and read.
-            automations = automations.all().map { it.withoutRunRecord() },
+            automations = automations.all().map { it.withoutDeviceState() },
         )
         return BackupJson.encodeToString(backup)
     }
@@ -86,7 +86,7 @@ class BackupManager(
                 } else {
                     automationsUpdated++
                 }
-                automations.save(automation.withoutRunRecord())
+                automations.save(automation.withoutDeviceState())
             }
 
             ImportResult.Success(
@@ -103,18 +103,22 @@ class BackupManager(
     }
 
     /**
-     * Strips the last-run record.
+     * Strips everything that describes one phone rather than the automation.
      *
-     * It describes what happened on the phone the backup came from. Carried
-     * across it would show "Ran 3 days ago" on an automation this device has
-     * never run, which is the one piece of feedback automations have and the
-     * one place a lie is expensive. Applied on the way out *and* on the way in,
-     * so a file written by a build that did not strip it is still safe to read.
+     * The run record would show "Ran 3 days ago" on an automation this device
+     * has never run — the one piece of feedback automations have, and the one
+     * place a lie is expensive. The restore snapshot is worse: carried across,
+     * a fresh install would "put back" the old phone's volume levels the first
+     * time you left somewhere. Applied on the way out *and* on the way in, so
+     * a file written by a build that did not strip them is still safe to read.
+     *
+     * [Automation.restoreOnExit] is configuration and travels as normal.
      */
-    private fun Automation.withoutRunRecord() = copy(
+    private fun Automation.withoutDeviceState() = copy(
         lastRunAtEpochMillis = 0L,
         lastResult = "",
         lastRunSucceeded = true,
+        savedState = null,
     )
 
     private companion object {

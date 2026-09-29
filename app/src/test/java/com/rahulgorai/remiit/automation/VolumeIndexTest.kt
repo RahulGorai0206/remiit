@@ -102,4 +102,35 @@ class VolumeIndexTest {
         assertEquals(8, volumeIndexFor(percent = 50, min = 0, max = 15))
         assertEquals(15, volumeIndexFor(percent = 100, min = 0, max = 15))
     }
+
+    /**
+     * A snapshot is recorded as a percentage and restored through
+     * [volumeIndexFor]. If the round trip drifted by even one step, leaving
+     * the office would put the volume back one notch off — every single day.
+     * Exhaustive over every index on every scale Android could plausibly use.
+     */
+    @Test
+    fun `reading a level and writing it back lands on the same step`() {
+        for (min in 0..2) {
+            for (max in (min + 1)..(min + 100)) {
+                for (index in min..max) {
+                    val percent = volumePercentFor(index, min, max)
+                    assertEquals(
+                        "index $index on $min..$max → $percent% did not round trip",
+                        index,
+                        volumeIndexFor(percent, min, max),
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `reading a level reports a percentage`() {
+        assertEquals(0, volumePercentFor(0, min = 0, max = 7))
+        assertEquals(100, volumePercentFor(7, min = 0, max = 7))
+        assertEquals(43, volumePercentFor(3, min = 0, max = 7))
+        assertEquals(0, volumePercentFor(1, min = 1, max = 7))
+        assertEquals(0, volumePercentFor(5, min = 3, max = 3))
+    }
 }

@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.rahulgorai.remiit.data.model.Automation
+import com.rahulgorai.remiit.data.model.DeviceSnapshot
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -51,4 +52,13 @@ interface AutomationDao {
             "last_run_ok = :succeeded WHERE id = :id"
     )
     suspend fun recordRun(id: String, at: Long, result: String, succeeded: Boolean)
+
+    /**
+     * Written by the engine only — taken just before an automation applies,
+     * cleared once it has been restored. Targeted for the same reason as
+     * [recordRun]: rewriting the whole row from an engine snapshot would undo
+     * an edit made in between.
+     */
+    @Query("UPDATE automations SET saved_state = :state WHERE id = :id")
+    suspend fun setSavedState(id: String, state: DeviceSnapshot?)
 }

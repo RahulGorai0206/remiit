@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
 import android.util.Log
+import com.rahulgorai.remiit.data.model.RingerMode
 import com.rahulgorai.remiit.data.model.SoundSetting
 import com.rahulgorai.remiit.data.model.VolumeStream
 import kotlin.math.roundToInt
@@ -38,6 +39,36 @@ interface DeviceControls {
 
     /** [percent] is 0-100 of the stream's range; see [volumeIndexFor]. */
     fun applyVolume(stream: VolumeStream, percent: Int): ActionResult
+
+    // ---- Reading the current state, for restore-on-exit ------------------
+    //
+    // Each returns null when the value cannot be read, and a null is recorded
+    // as "nothing to restore" for that setting. Guessing instead — assuming the
+    // ringer was on, say — would restore a state the phone was never in.
+
+    fun readRinger(): RingerMode?
+
+    fun readDndOn(): Boolean?
+
+    fun readAutoBrightness(): Boolean?
+
+    /** Percent of the stream's range; see [volumePercentFor]. */
+    fun readVolume(stream: VolumeStream): Int?
+}
+
+/**
+ * The inverse of [volumeIndexFor]: the percentage a device index represents.
+ *
+ * A snapshot is recorded in percent and restored through [volumeIndexFor], so
+ * the round trip has to land on the index it started from. It does for any
+ * scale of up to a hundred steps — a percent is then no coarser than a step,
+ * so rounding to one and back cannot cross a step boundary — which covers
+ * every stream on every device Android ships. The test proves it exhaustively.
+ */
+fun volumePercentFor(index: Int, min: Int, max: Int): Int {
+    if (max <= min) return 0
+    val clamped = index.coerceIn(min, max)
+    return ((clamped - min) * 100f / (max - min)).roundToInt()
 }
 
 /**
@@ -216,6 +247,47 @@ class AndroidDeviceControls(private val context: Context) : DeviceControls {
                 ActionResult.Failed("Android refused the ${stream.name.lowercase()} volume change")
             }
         }
+    }
+
+    override fun readRinger(): RingerMode? = when (audio?.ringerMode) {
+        AudioManager.RINGER_MODE_SILENT -> RingerMode.SILENT
+        AudioManager.RINGER_MODE_VIBRATE -> RingerMode.VIBRATE
+        AudioManager.RINGER_MODE_NORMAL -> RingerMode.RING
+        else -> null
+    }
+
+    /**
+     * Anything other than "all" counts as on — priority, alarms-only and total
+     * silence are all Do Not Disturb to the user. Unknown means the service
+     * could not say, which is recorded as nothing to restore.
+     */
+    override fun readDndOn(): Boolean? = when (notifications?.currentInterruptionFilter) {
+        NotificationManager.INTERRUPTION_FILTER_ALL -> false
+        NotificationManager.INTERRUPTION_FILTER_PRIORITY,
+        NotificationManager.INTERRUPTION_FILTER_ALARMS,
+        NotificationManager.INTERRUPTION_FILTER_NONE -> true
+        // Named rather than left to an else, so a filter added in a future
+        // Android is recorded as "unknown" instead of silently counted as on.
+        NotificationManager.INTERRUPTION_FILTER_UNKNOWN -> null
+        else -> null
+    }
+
+    /** Reading needs no permission; only writing needs "Modify system settings". */
+    override fun readAutoBrightness(): Boolean? = runCatching {
+        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE) ==
+            Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+    }.getOrNull()
+
+    override fun readVolume(stream: VolumeStream): Int? {
+        val manager = audio ?: return null
+        val androidStream = stream.androidStream
+        return runCatching {
+            volumePercentFor(
+                index = manager.getStreamVolume(androidStream),
+                min = manager.getStreamMinVolume(androidStream),
+                max = manager.getStreamMaxVolume(androidStream),
+            )
+        }.getOrNull()
     }
 
     private val VolumeStream.androidStream: Int

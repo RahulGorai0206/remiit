@@ -4,6 +4,7 @@ import androidx.room.TypeConverter
 import com.rahulgorai.remiit.data.model.AutomationActions
 import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.DeliveryConfig
+import com.rahulgorai.remiit.data.model.DeviceSnapshot
 import com.rahulgorai.remiit.data.model.ReminderOutcome
 import com.rahulgorai.remiit.data.model.RuleConstraints
 import com.rahulgorai.remiit.data.model.Trigger
@@ -73,6 +74,21 @@ class Converters {
     @TypeConverter
     fun jsonToAutomationActions(value: String): AutomationActions =
         if (value.isBlank()) AutomationActions() else RemiitJson.decodeFromString(value)
+
+    @TypeConverter
+    fun snapshotToJson(value: DeviceSnapshot?): String? =
+        value?.let { RemiitJson.encodeToString(it) }
+
+    /**
+     * Unlike the trigger, an unreadable snapshot degrades to "nothing to
+     * restore" rather than throwing. Losing a snapshot costs one missed
+     * restore; throwing would make the whole automation row unloadable.
+     */
+    @TypeConverter
+    fun jsonToSnapshot(value: String?): DeviceSnapshot? =
+        value?.takeIf { it.isNotBlank() }?.let {
+            runCatching { RemiitJson.decodeFromString<DeviceSnapshot>(it) }.getOrNull()
+        }
 
     @TypeConverter
     fun outcomeToName(value: ReminderOutcome): String = value.name

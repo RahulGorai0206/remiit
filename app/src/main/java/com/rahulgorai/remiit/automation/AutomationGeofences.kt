@@ -46,7 +46,7 @@ class AutomationGeofences(private val context: Context) {
             .filter { it.isEnabled }
             .mapNotNull { automation ->
                 (automation.trigger as? AutomationTrigger.Location)
-                    ?.let { buildGeofence(automation.id, it) }
+                    ?.let { buildGeofence(automation.id, it, automation.restoreOnExit) }
             }
 
         // Always clear first, so an edited or deleted automation stops firing.
@@ -82,7 +82,11 @@ class AutomationGeofences(private val context: Context) {
             .addOnFailureListener { if (cont.isActive) cont.resume(false) }
     }
 
-    private fun buildGeofence(automationId: String, trigger: AutomationTrigger.Location): Geofence? =
+    private fun buildGeofence(
+        automationId: String,
+        trigger: AutomationTrigger.Location,
+        restoreOnExit: Boolean,
+    ): Geofence? =
         runCatching {
             Geofence.Builder()
                 // The automation id alone — unlike a rule, an automation has
@@ -96,10 +100,18 @@ class AutomationGeofences(private val context: Context) {
                     trigger.radiusMeters.coerceAtLeast(LocationTriggerMonitor.MIN_RADIUS_METERS),
                 )
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                // Both transitions when restoring. Wi-Fi and Bluetooth report
+                // both edges regardless, but a geofence only reports the
+                // transitions it was registered for — register just "enter"
+                // and the OS never says you left, so nothing is ever put back.
                 .setTransitionTypes(
-                    when (trigger.edge) {
-                        AutomationEdge.ENTER -> Geofence.GEOFENCE_TRANSITION_ENTER
-                        AutomationEdge.EXIT -> Geofence.GEOFENCE_TRANSITION_EXIT
+                    if (restoreOnExit) {
+                        Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT
+                    } else {
+                        when (trigger.edge) {
+                            AutomationEdge.ENTER -> Geofence.GEOFENCE_TRANSITION_ENTER
+                            AutomationEdge.EXIT -> Geofence.GEOFENCE_TRANSITION_EXIT
+                        }
                     }
                 )
                 .build()

@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rahulgorai.remiit.data.model.Automation
 import com.rahulgorai.remiit.data.model.AutomationTriggerKind
 import com.rahulgorai.remiit.data.model.kind
+import com.rahulgorai.remiit.data.model.restoreLabel
 import com.rahulgorai.remiit.data.model.summary
 import com.rahulgorai.remiit.ui.components.formatNextFire
 import com.rahulgorai.remiit.ui.theme.RemiitBorders
@@ -255,6 +256,27 @@ private fun AutomationCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary.copy(alpha = faded),
             )
+
+            if (automation.restoreOnExit) {
+                Spacer(Modifier.height(6.dp))
+                // Two states worth telling apart at a glance. "Restores …" is a
+                // promise about the future; "In effect" means a snapshot is
+                // being held right now — you are at the office, and something
+                // will be put back when you leave.
+                Text(
+                    text = if (automation.savedState != null) {
+                        "In effect · restores ${automation.trigger.restoreLabel()}"
+                    } else {
+                        "Restores ${automation.trigger.restoreLabel()}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (automation.savedState != null) {
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = faded)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = faded)
+                    },
+                )
+            }
 
             if (automation.lastRunAtEpochMillis > 0L) {
                 Spacer(Modifier.height(10.dp))

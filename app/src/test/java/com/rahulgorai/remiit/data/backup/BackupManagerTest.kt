@@ -7,6 +7,9 @@ import com.rahulgorai.remiit.data.model.AutomationEdge
 import com.rahulgorai.remiit.data.model.AutomationTrigger
 import com.rahulgorai.remiit.data.model.DeliveryConfig
 import com.rahulgorai.remiit.data.model.DeliveryMode
+import com.rahulgorai.remiit.data.model.DeviceSnapshot
+import com.rahulgorai.remiit.data.model.RingerMode
+import com.rahulgorai.remiit.data.model.VolumeStream
 import com.rahulgorai.remiit.data.model.LocationEvent
 import com.rahulgorai.remiit.data.model.Recurrence
 import com.rahulgorai.remiit.data.model.ReminderRule
@@ -163,6 +166,33 @@ class BackupManagerTest {
         assertEquals(0L, restored.lastRunAtEpochMillis)
         assertEquals("", restored.lastResult)
         assertTrue(restored.lastRunSucceeded)
+    }
+
+    /**
+     * The option is configuration and travels; the snapshot is one phone's
+     * state and must not. Carried across, a fresh install would "put back" the
+     * old phone's volume levels the first time you left somewhere.
+     */
+    @Test
+    fun `restore-on-exit travels but the held snapshot does not`() = runTest {
+        automationDao.upsert(
+            automation.copy(
+                restoreOnExit = true,
+                savedState = DeviceSnapshot(
+                    ringer = RingerMode.VIBRATE,
+                    volumes = mapOf(VolumeStream.MEDIA to 40),
+                ),
+            )
+        )
+        val json = manager.export()
+        assertTrue("the snapshot must not be written to the file", "VIBRATE" !in json)
+
+        automationDao.automations.value = emptyList()
+        manager.import(json)
+
+        val restored = automations.automation("a1")!!
+        assertTrue(restored.restoreOnExit)
+        assertEquals(null, restored.savedState)
     }
 
     @Test
